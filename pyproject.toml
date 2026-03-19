@@ -1,0 +1,130 @@
+# Copyright 2022 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+# Testing tools configuration
+[tool.coverage.run]
+branch = true
+data_file = ".cover/.coverage"
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.coverage.xml]
+output = ".cover/coverage.xml"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+log_cli_level = "INFO"
+pythonpath = ["src", "lib", "tests"]
+
+# Linting and formatting tools configuration
+[tool.codespell]
+# https://github.com/codespell-project/codespell
+skip = ".git,.tox,build,lib,venv,.venv,.mypy_cache,icon.svg,__pycache__"
+
+[tool.isort]
+# Profiles: https://pycqa.github.io/isort/docs/configuration/profiles.html
+line_length = 99
+profile = "black"
+
+
+[tool.ruff]
+# Default settings: https://docs.astral.sh/ruff/configuration/
+# Settings: https://docs.astral.sh/ruff/settings/
+line-length = 99
+include = [
+    "pyproject.toml",
+    "src/**/*.py",
+    "tests/**/*.py",
+    "lib/charms/tenant_service/**/*.py"
+]
+extend-exclude = ["__pycache__", "*.egg_info"]
+target-version = "py38"
+preview = true
+
+[tool.ruff.lint]
+# Rules: https://docs.astral.sh/ruff/rules/
+select = ["E", "W", "F", "C", "N", "D", "CPY"]
+ignore = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D105",
+    "D107",
+    "D203",
+    "D204",
+    "D213",
+    "D215",
+    "D400",
+    "D404",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+    "E501",
+    "N818"
+]
+per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104"]}
+
+[tool.ruff.lint.flake8-copyright]
+author = "Canonical Ltd."
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+pretty = true
+plugins = ["pydantic.mypy"]
+mypy_path = "./src:./lib/:./tests"
+exclude = 'lib/charms/((?!tenant_service/).)'
+follow_imports = "silent"
+warn_redundant_casts = true
+warn_unused_configs = true
+show_traceback = true
+show_error_codes = true
+namespace_packages = true
+explicit_package_bases = true
+check_untyped_defs = true
+allow_redefinition = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+# Ignore libraries that do not have type hint nor stubs
+[[tool.mypy.overrides]]
+module = ["ops.*", "pytest.*", "jubilant.*", "urllib3.*", "jinja2.*", "lightkube.*", "pytest_mock.*"]
+
+[tool.pyright]
+extraPaths = ["src", "lib"]
+
+[dependency-groups]
+fmt = ["isort", "ruff"]
+lint = ["codespell", "isort", "ruff"]
+unit = [
+    "ops[testing]",
+    "pytest",
+    "pytest-mock",
+    "coverage[toml]",
+    "jsonschema",
+]
+integration = [
+    "jubilant",
+    "pytest",
+    "requests",
+    "tenacity",
+]
+dev = [
+    { include-group = "fmt" },
+    { include-group = "lint" },
+    { include-group = "unit" },
+    { include-group = "integration" },
+    "pre-commit",
+    "mypy",
+    "types-PyYAML",
+    "types-requests",
+]

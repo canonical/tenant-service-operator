@@ -1,0 +1,17 @@
+# Release charm's libraries if they have changed
+name: Release Libraries
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "lib/charms/tenant_service/**"
+
+jobs:
+  release-lib:
+    name: Release any bumped library
+    uses: canonical/identity-team/.github/workflows/charm-libs-release.yaml@6b27807be4ec7c25045d52ef09ac780d684f65a2 # v1.10.0
+    secrets:
+      CHARMCRAFT_CREDENTIALS: ${{ secrets.CHARMCRAFT_CREDENTIALS }}
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}

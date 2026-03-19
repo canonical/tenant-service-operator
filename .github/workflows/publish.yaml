@@ -1,0 +1,108 @@
+# reusable workflow for publishing all charms in this repo
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v**"
+      - "track**"
+
+  workflow_dispatch:
+    inputs:
+      destination_channel:
+        description: CharmHub channel to publish to
+        required: false
+        default: 'latest/edge'
+        type: string
+      source_branch:
+        description: Github branch from this repo to publish.  If blank, will use the default branch
+        required: false
+        default: ''
+        type: string
+      override-ci:
+        description: Override standard release flow
+        required: true
+        type: boolean
+
+jobs:
+  publish:
+    name: Publish Charm
+    uses: canonical/identity-team/.github/workflows/charm-publish.yaml@6b27807be4ec7c25045d52ef09ac780d684f65a2 # v1.10.0
+    with:
+      destination_channel: ${{ inputs.destination_channel}}
+      source_branch: ${{ inputs.source_branch}}
+      use-charmcraftcache: true
+    secrets:
+      CHARMCRAFT_CREDENTIALS: ${{ secrets.CHARMCRAFT_CREDENTIALS}}
+
+  revision:
+    concurrency:
+      group: ${{ needs.publish.outputs.track }}-${{ needs.publish.outputs.channel }}
+      cancel-in-progress: true
+    needs:
+      - publish
+    outputs:
+      revision: ${{ steps.set-revision.outputs.revision }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+      - name: Set charm name
+        id: set-charm-name
+        run: echo charm_name=$(cat charmcraft.yaml | yq '.name') >> $GITHUB_OUTPUT
+      - name: Set revision
+        id: set-revision
+        run: |
+          sudo snap install charmcraft --classic --channel latest/stable
+          revision=$(charmcraft status ${{ env.CHARM_NAME }} --format json | jq '.[] | select(.track == "${{ env.TRACK }}") | .mappings[0].releases[] | select(.channel == "${{ needs.publish.outputs.channel }}") | .revision')
+          echo "setting output of revision=$revision"
+          echo "revision=$revision" >> $GITHUB_OUTPUT
+        env:
+          CHARMCRAFT_AUTH: ${{ secrets.CHARMCRAFT_CREDENTIALS }}
+          CHARM_NAME: ${{ steps.set-charm-name.outputs.charm_name }}
+          # only cater for latest track for now
+          TRACK: latest
+
+  dev-deploy:
+    concurrency:
+      group: ${{ needs.publish.outputs.track }}-${{ needs.publish.outputs.channel }}
+      cancel-in-progress: true
+    needs:
+      - publish
+      - revision
+    if: ${{ (needs.publish.outputs.channel == 'latest/edge') }}
+    uses: canonical/identity-team/.github/workflows/charm-deploy.yaml@6b27807be4ec7c25045d52ef09ac780d684f65a2 # v1.10.0
+    with:
+        model: blue-iam
+        revision: ${{ needs.revision.outputs.revision }}
+        channel: ${{ needs.publish.outputs.channel}}
+        application: tenant-service
+        tf-application-resource: module.application.juju_application.application
+    secrets:
+      CLIENT_ID: ${{ secrets.JIMM_DEV_CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.JIMM_DEV_CLIENT_SECRET }}
+      JIMM_URL: ${{ secrets.JIMM_URL }}
+      MODEL_UUID: ${{ secrets.DEV_MODEL_UUID }}
+
+  stg-deploy:
+    concurrency:
+      group: ${{ needs.publish.outputs.track }}-${{ needs.publish.outputs.channel }}
+      cancel-in-progress: true
+    needs:
+      - publish
+      - revision
+    if: ${{ (needs.publish.outputs.channel == 'latest/stable') }}
+    uses: canonical/identity-team/.github/workflows/charm-deploy.yaml@6b27807be4ec7c25045d52ef09ac780d684f65a2 # v1.10.0
+    with:
+      model: green-iam
+      revision: ${{ needs.revision.outputs.revision }}
+      channel: ${{ needs.publish.outputs.channel}}
+      application: tenant-service
+      tf-application-resource: module.tenant_service.juju_application.application
+    secrets:
+      CLIENT_ID: ${{ secrets.JIMM_STG_CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.JIMM_STG_CLIENT_SECRET }}
+      JIMM_URL: ${{ secrets.JIMM_URL }}
+      MODEL_UUID: ${{ secrets.STG_MODEL_UUID }}

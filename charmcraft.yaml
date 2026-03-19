@@ -1,0 +1,180 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+name: tenant-service
+type: charm
+title: Tenant Service Operator
+summary: Operator for Identity platform Tenant Service
+description: |
+    Operator for Identity platform Tenant Service
+links:
+  source: https://github.com/canonical/tenant-service-operator
+  issues: https://github.com/canonical/tenant-service-operator/issues
+
+charm-user: non-root
+platforms:
+  ubuntu@22.04:amd64:
+
+assumes:
+  - juju >= 3.0.2
+  - k8s-api
+
+config:
+  options:
+    http_proxy:
+      description: URL of the HTTP proxy eg http://proxy.internal:6666, it will set the HTTP_PROXY var in the workload environment
+      type: string
+      default: ''
+    https_proxy:
+      description: URL of the HTTPS proxy eg http://proxy.internal:6666, it will set the HTTPS_PROXY var in the workload environment
+      type: string
+      default: ''
+    no_proxy:
+      description: Domains that need to be excluded from proxying no_proxy="test.com,test.co.uk", it is a comma separate list
+      type: string
+      default: ''
+    log_level:
+      description: |
+        Configures the log level.
+
+        Acceptable values are: "info", "debug", "warning", "error" and "critical"
+      default: "info"
+      type: string
+    cpu:
+      description: |
+        K8s cpu resource limit, e.g. "1" or "500m". Default is unset (no limit). This value is used
+        for the "limits" portion of the resource requirements (the "requests" portion is
+        automatically deduced from it).
+        See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+      type: string
+    memory:
+      description: |
+        K8s memory resource limit, e.g. "1Gi". Default is unset (no limit). This value is used
+        for the "limits" portion of the resource requirements (the "requests" portion is
+        automatically deduced from it).
+        See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+      type: string
+    salesforce_domain:
+      description: |
+        The Salesforce domain URL. E.g. https://login.test.salesfoce.com
+      type: string
+    salesforce_consumer_secret:
+      description: |
+        A secret with the consumer key/secret pair to use when calling the salesforce API.
+
+        The secret must contain the keys `consumer-key` and `consumer-secret`
+      type: secret
+    salesforce_enabled:
+      description: |
+        Whether the salesforce integration is enabled.
+      type: boolean
+      default: true
+    authn_allowed_subjects:
+      description: |
+        Comma separated list of allowed subject IDs that are allowed to access the Group/Authz management APIs.
+      type: string
+      default: ''
+    authn_allowed_scope:
+      description: |
+        The allowed OAuth2 scopes that are allowed to access the Group/Authz management APIs.
+      type: string
+      default: ''
+    authn_issuer:
+      description: |
+        The expected issuer of incoming tokens to the Group/Authz management APIs.
+
+        This configuration cannot be used with when the oauth integration exists.
+      type: string
+      default: ''
+    authn_jwks_url:
+      description: |
+        The URL to fetch JWKS keys for validating incoming tokens to the Group/Authz management APIs.
+
+        This configuration cannot be used with when the oauth integration exists.
+      type: string
+      default: ''
+
+actions:
+  get-access-token:
+    description: |
+      Generate a JWT token for accessing the Group/Authz management APIs.
+
+      This action requires the oauth integration to be established and ready.
+
+
+requires:
+  logging:
+    interface: loki_push_api
+    optional: true
+  tracing:
+    interface: tracing
+    limit: 1
+    optional: true
+    description: |
+      Provides traces to COS Tempo instance
+  internal-route:
+    interface: traefik_route
+    limit: 1
+    optional: true
+    description: |
+      Allows the charm to be exposed for cross-cluster communication, needed
+      for cases where network topology is more complex than just one k8s cluster
+  pg-database:
+    interface: postgresql_client
+    optional: false
+    limit: 1
+  openfga:
+    interface: openfga
+    limit: 1
+    description: |
+      Receive OpenFGA server's url and store information.
+  oauth:
+    interface: oauth
+    limit: 1
+    description: |
+      Receive oauth server's info and a set of client credentials.
+      This integration can be used to integrate the service with an OAuth2/OIDC Provider.
+  receive-ca-cert:
+    interface: certificate_transfer
+    description: |
+      Receive a CA cert.
+      This relation can be used with a local CA to obtain the CA cert that was used to sign proxied
+      endpoints.
+
+provides:
+  metrics-endpoint:
+    interface: prometheus_scrape
+    optional: true
+    description: |
+      Provides application metrics to COS Prometheus instance
+  grafana-dashboard:
+    interface: grafana_dashboard
+    optional: true
+    description: |
+      Forwards the built-in grafana dashboard(s) for monitoring hydra.
+
+peers:
+  tenant-service:
+    interface: tenant_service_peers
+
+containers:
+  tenant-service:
+    gid: 584792
+    uid: 584792
+    resource: oci-image
+
+resources:
+  oci-image:
+    type: oci-image
+    description: OCI image for tenant-service
+    upstream-source: ghcr.io/canonical/tenant-service:v0.2.0
+
+parts:
+  charm:
+    charm-binary-python-packages:
+      - jsonschema
+      - "pydantic>=2"
+      - "setuptools>=70.0.0"
+    build-packages:
+      - rustc
+      - cargo
