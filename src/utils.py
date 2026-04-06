@@ -13,7 +13,6 @@ from constants import (
     DATABASE_INTEGRATION_NAME,
     KRATOS_INFO_INTEGRATION_NAME,
     OPENFGA_INTEGRATION_NAME,
-    OPENFGA_MODEL_ID,
     PEER_INTEGRATION_NAME,
     WORKLOAD_CONTAINER,
 )
@@ -76,14 +75,6 @@ def migration_is_ready(charm: "TenantServiceOperatorCharm") -> bool:
 def openfga_store_readiness(charm: "TenantServiceOperatorCharm") -> bool:
     """Check if the OpenFGA store is ready."""
     return charm.openfga_integration.is_store_ready()
-
-
-def openfga_model_readiness(charm: "TenantServiceOperatorCharm") -> bool:
-    """Check if the OpenFGA model has been created for the current workload version."""
-    version = charm._workload_service.version
-    if not (openfga_model := charm.peer_data[version]):
-        return False
-    return bool(openfga_model.get(OPENFGA_MODEL_ID))
 
 
 def authentication_config_status(charm: "TenantServiceOperatorCharm") -> StatusBase:

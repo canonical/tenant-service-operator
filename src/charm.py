@@ -59,6 +59,7 @@ from constants import (
     OPENFGA_MODEL_ID,
     OPENFGA_STORE_NAME,
     PEBBLE_READY_CHECK_NAME,
+    PEER_INTEGRATION_NAME,
     PORT,
     PROMETHEUS_SCRAPE_INTEGRATION_NAME,
     TEMPO_TRACING_INTEGRATION_NAME,
@@ -459,10 +460,20 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         """Ensure TLS certificates are updated on both the charm and workload."""
         LOCAL_CHARM_CERTIFICATES_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-        if certificates := TLSCertificates.load(self.certificate_transfer_requirer).ca_bundle:
+        certificates = TLSCertificates.load(self.certificate_transfer_requirer).ca_bundle
+        existing = (
+            LOCAL_CHARM_CERTIFICATES_FILE.read_text()
+            if LOCAL_CHARM_CERTIFICATES_FILE.exists()
+            else ""
+        )
+
+        if certificates == existing:
+            return True
+
+        if certificates:
             LOCAL_CHARM_CERTIFICATES_FILE.write_text(certificates)
-        elif LOCAL_CHARM_CERTIFICATES_FILE.exists():
-            LOCAL_CHARM_CERTIFICATES_FILE.unlink()
+        else:
+            LOCAL_CHARM_CERTIFICATES_FILE.unlink(missing_ok=True)
 
         try:
             subprocess.run(
@@ -478,6 +489,9 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             )
         except subprocess.CalledProcessError:
             logger.exception("Failed to update CA certificates")
+            # Remove the cert file so the next reconciliation retries the subprocess.
+            LOCAL_CHARM_CERTIFICATES_FILE.unlink(missing_ok=True)
+            return True
         self._workload_service.update_ca_certs()
         return True
 
@@ -668,6 +682,11 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             if not self.openfga_integration.is_store_ready():
                 event.add_status(ops.WaitingStatus("Waiting for openfga store to be created"))
 
+            if not peer_integration_exists(self):
+                event.add_status(
+                    ops.WaitingStatus(f"Waiting for peer integration {PEER_INTEGRATION_NAME}")
+                )
+
         if not kratos_info_integration_exists(self):
             event.add_status(
                 ops.BlockedStatus(f"Missing integration {KRATOS_INFO_INTEGRATION_NAME}")
@@ -675,9 +694,34 @@ class TenantServiceOperatorCharm(ops.CharmBase):
 
     # Actions
 
+    def _get_management_token(self) -> str | None:
+        """Get an OAuth access token for internal management API calls.
+
+        Returns:
+            An access token if OAuth is configured and the exchange succeeds,
+            otherwise None.  Callers that pass None to the CLI proceed without
+            authentication (suitable when authorization_enabled=False).
+        """
+        provider_info = self.oauth_requirer.get_provider_info()
+        if not provider_info or not provider_info.client_id or not provider_info.client_secret:
+            return None
+        try:
+            with HTTPClient(token_url=provider_info.token_endpoint) as client:
+                return client.get_access_token(
+                    client_id=provider_info.client_id,
+                    client_secret=provider_info.client_secret,
+                )
+        except Exception:
+            logger.warning("Failed to obtain management token")
+            return None
+
     def _on_get_access_token_action(self, event: ops.ActionEvent) -> None:
         """Handle the get-access-token action."""
-        if not (provider_info := self.oauth_requirer.get_provider_info()):
+        if (
+            not (provider_info := self.oauth_requirer.get_provider_info())
+            or provider_info.client_id is None
+            or provider_info.client_secret is None
+        ):
             event.fail("OAuth integration is not ready")
             return
 
@@ -704,6 +748,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         try:
             result = self._cli.create_tenant(
                 name=event.params["name"],
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:
@@ -716,7 +761,11 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             return
 
         try:
-            result = self._cli.list_tenants()
+            result = self._cli.list_tenants(
+                page_size=event.params.get("page-size"),
+                page_token=event.params.get("page-token"),
+                token=self._get_management_token(),
+            )
             event.set_results({"output": result})
         except Exception as e:
             event.fail(f"Failed to list tenants: {e}")
@@ -730,6 +779,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         try:
             result = self._cli.delete_tenant(
                 tenant_id=event.params["tenant-id"],
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:
@@ -744,6 +794,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         try:
             result = self._cli.activate_tenant(
                 tenant_id=event.params["tenant-id"],
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:
@@ -758,6 +809,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         try:
             result = self._cli.deactivate_tenant(
                 tenant_id=event.params["tenant-id"],
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:
@@ -773,6 +825,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             result = self._cli.update_tenant(
                 tenant_id=event.params["tenant-id"],
                 name=event.params["name"],
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:
@@ -787,6 +840,9 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         try:
             result = self._cli.list_tenant_users(
                 tenant_id=event.params["tenant-id"],
+                page_size=event.params.get("page-size"),
+                page_token=event.params.get("page-token"),
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:
@@ -803,6 +859,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
                 tenant_id=event.params["tenant-id"],
                 email=event.params["email"],
                 role=event.params["role"],
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:
@@ -819,6 +876,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
                 tenant_id=event.params["tenant-id"],
                 email=event.params["email"],
                 role=event.params["role"],
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:
@@ -835,6 +893,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
                 tenant_id=event.params["tenant-id"],
                 user_id=event.params["user-id"],
                 role=event.params["role"],
+                token=self._get_management_token(),
             )
             event.set_results({"output": result})
         except Exception as e:

@@ -50,7 +50,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 
 @pytest.fixture(scope="module")
-def model(request: pytest.FixtureRequest) -> Iterator[jubilant.Juju]:
+def juju(request: pytest.FixtureRequest) -> Iterator[jubilant.Juju]:
     """Create a temporary Juju model for integration tests."""
     model_name = request.config.getoption("--model")
     if not model_name:

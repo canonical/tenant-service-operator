@@ -104,6 +104,13 @@ actions:
     required: [name]
   list-tenants:
     description: List all tenants.
+    params:
+      page-size:
+        type: integer
+        description: Maximum number of results to return per page.
+      page-token:
+        type: string
+        description: Token to retrieve the next page of results.
   delete-tenant:
     description: Delete a tenant.
     params:
@@ -141,6 +148,12 @@ actions:
       tenant-id:
         type: string
         description: ID of the tenant.
+      page-size:
+        type: integer
+        description: Maximum number of results to return per page.
+      page-token:
+        type: string
+        description: Token to retrieve the next page of results.
     required: [tenant-id]
   invite-user:
     description: Send an invitation email to join a tenant.

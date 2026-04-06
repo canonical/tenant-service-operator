@@ -143,6 +143,18 @@ class TestCreateOpenfgaModel:
                 url="http://openfga:8080", api_token="token", store_id="store-1"
             )
 
+    def test_missing_model_id_raises(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.return_value = (json.dumps({}), "")
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(CreateFgaStoreError):
+            cli.create_openfga_model(
+                url="http://openfga:8080", api_token="token", store_id="store-1"
+            )
+
 
 class TestTenantCommands:
     def test_create_tenant(self, cli: CommandLine, mocked_container: MagicMock) -> None:
@@ -234,6 +246,106 @@ class TestTenantCommands:
         assert "--name" in call_args
         assert "new-name" in call_args
 
+    def test_list_tenants_pagination(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.return_value = ("ID  NAME", "")
+        mocked_container.exec.return_value = process
+
+        cli.list_tenants(page_size=10, page_token="next-page-token")
+
+        call_args = mocked_container.exec.call_args[0][0]
+        assert "--page-size" in call_args
+        assert "10" in call_args
+        assert "--page-token" in call_args
+        assert "next-page-token" in call_args
+
+    def test_list_tenants_no_pagination_flags_when_not_provided(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.return_value = ("ID  NAME", "")
+        mocked_container.exec.return_value = process
+
+        cli.list_tenants()
+
+        call_args = mocked_container.exec.call_args[0][0]
+        assert "--page-size" not in call_args
+        assert "--page-token" not in call_args
+
+    def test_create_tenant_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "tenant", "create", "test"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.create_tenant(name="test")
+
+    def test_list_tenants_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "tenant", "list"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.list_tenants()
+
+    def test_delete_tenant_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "tenant", "delete", "abc-123"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.delete_tenant(tenant_id="abc-123")
+
+    def test_activate_tenant_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "tenant", "activate", "abc-123"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.activate_tenant(tenant_id="abc-123")
+
+    def test_deactivate_tenant_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "tenant", "deactivate", "abc-123"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.deactivate_tenant(tenant_id="abc-123")
+
+    def test_update_tenant_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "tenant", "update", "abc-123"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.update_tenant(tenant_id="abc-123", name="new-name")
+
 
 class TestUserCommands:
     def test_list_tenant_users(self, cli: CommandLine, mocked_container: MagicMock) -> None:
@@ -294,3 +406,66 @@ class TestUserCommands:
         assert "u1" in call_args
         assert "--role" in call_args
         assert "admin" in call_args
+
+    def test_list_tenant_users_pagination(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.return_value = ("USER_ID  EMAIL", "")
+        mocked_container.exec.return_value = process
+
+        cli.list_tenant_users(tenant_id="abc-123", page_size=5, page_token="tok")
+
+        call_args = mocked_container.exec.call_args[0][0]
+        assert "--page-size" in call_args
+        assert "5" in call_args
+        assert "--page-token" in call_args
+        assert "tok" in call_args
+
+    def test_list_tenant_users_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "users", "list", "abc-123"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.list_tenant_users(tenant_id="abc-123")
+
+    def test_invite_user_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "users", "invite"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.invite_user(tenant_id="abc-123", email="a@b.c", role="admin")
+
+    def test_provision_user_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "users", "provision"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.provision_user(tenant_id="abc-123", email="a@b.c", role="member")
+
+    def test_update_user_role_failure(
+        self, cli: CommandLine, mocked_container: MagicMock
+    ) -> None:
+        process = MagicMock()
+        process.wait_output.side_effect = ExecError(
+            ["tenant-service", "users", "update"], 1, "", "error"
+        )
+        mocked_container.exec.return_value = process
+
+        with pytest.raises(ExecError):
+            cli.update_user_role(tenant_id="abc-123", user_id="u1", role="admin")

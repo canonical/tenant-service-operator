@@ -17,7 +17,7 @@ class TestCreateTenantAction:
         mocked_cli.return_value.create_tenant.return_value = "Tenant created: test (ID: 123)"
         state = create_state()
         context.run(context.on.action("create-tenant", params={"name": "test"}), state)
-        mocked_cli.return_value.create_tenant.assert_called_once_with(name="test")
+        mocked_cli.return_value.create_tenant.assert_called_once_with(name="test", token=None)
 
     def test_failure(
         self,
@@ -47,7 +47,9 @@ class TestListTenantsAction:
         mocked_cli.return_value.list_tenants.return_value = "ID  NAME"
         state = create_state()
         context.run(context.on.action("list-tenants"), state)
-        mocked_cli.return_value.list_tenants.assert_called_once()
+        mocked_cli.return_value.list_tenants.assert_called_once_with(
+            page_size=None, page_token=None, token=None
+        )
 
     def test_failure(
         self,
@@ -77,7 +79,7 @@ class TestDeleteTenantAction:
         mocked_cli.return_value.delete_tenant.return_value = "Tenant deleted"
         state = create_state()
         context.run(context.on.action("delete-tenant", params={"tenant-id": "abc"}), state)
-        mocked_cli.return_value.delete_tenant.assert_called_once_with(tenant_id="abc")
+        mocked_cli.return_value.delete_tenant.assert_called_once_with(tenant_id="abc", token=None)
 
     def test_failure(
         self,
@@ -107,7 +109,7 @@ class TestActivateTenantAction:
         mocked_cli.return_value.activate_tenant.return_value = "Tenant activated"
         state = create_state()
         context.run(context.on.action("activate-tenant", params={"tenant-id": "abc"}), state)
-        mocked_cli.return_value.activate_tenant.assert_called_once_with(tenant_id="abc")
+        mocked_cli.return_value.activate_tenant.assert_called_once_with(tenant_id="abc", token=None)
 
     def test_failure(
         self,
@@ -137,7 +139,7 @@ class TestDeactivateTenantAction:
         mocked_cli.return_value.deactivate_tenant.return_value = "Tenant deactivated"
         state = create_state()
         context.run(context.on.action("deactivate-tenant", params={"tenant-id": "abc"}), state)
-        mocked_cli.return_value.deactivate_tenant.assert_called_once_with(tenant_id="abc")
+        mocked_cli.return_value.deactivate_tenant.assert_called_once_with(tenant_id="abc", token=None)
 
     def test_failure(
         self,
@@ -170,7 +172,7 @@ class TestUpdateTenantAction:
             context.on.action("update-tenant", params={"tenant-id": "abc", "name": "new"}),
             state,
         )
-        mocked_cli.return_value.update_tenant.assert_called_once_with(tenant_id="abc", name="new")
+        mocked_cli.return_value.update_tenant.assert_called_once_with(tenant_id="abc", name="new", token=None)
 
     def test_failure(
         self,
@@ -206,7 +208,9 @@ class TestListTenantUsersAction:
         mocked_cli.return_value.list_tenant_users.return_value = "USER_ID EMAIL ROLE"
         state = create_state()
         context.run(context.on.action("list-tenant-users", params={"tenant-id": "abc"}), state)
-        mocked_cli.return_value.list_tenant_users.assert_called_once_with(tenant_id="abc")
+        mocked_cli.return_value.list_tenant_users.assert_called_once_with(
+            tenant_id="abc", page_size=None, page_token=None, token=None
+        )
 
     def test_failure(
         self,
@@ -242,7 +246,7 @@ class TestInviteUserAction:
             state,
         )
         mocked_cli.return_value.invite_user.assert_called_once_with(
-            tenant_id="abc", email="a@b.c", role="admin"
+            tenant_id="abc", email="a@b.c", role="admin", token=None
         )
 
     def test_failure(
@@ -292,7 +296,7 @@ class TestProvisionUserAction:
             state,
         )
         mocked_cli.return_value.provision_user.assert_called_once_with(
-            tenant_id="abc", email="a@b.c", role="member"
+            tenant_id="abc", email="a@b.c", role="member", token=None
         )
 
     def test_failure(
@@ -342,7 +346,7 @@ class TestUpdateUserRoleAction:
             state,
         )
         mocked_cli.return_value.update_user_role.assert_called_once_with(
-            tenant_id="abc", user_id="u1", role="admin"
+            tenant_id="abc", user_id="u1", role="admin", token=None
         )
 
     def test_failure(

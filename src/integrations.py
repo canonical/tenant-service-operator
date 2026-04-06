@@ -364,13 +364,23 @@ class OpenFGAIntegration:
 
 
 class PeerData:
-    """Access peer relation data."""
+    """Access peer relation app-level data.
+
+    The databag is version-keyed: each entry uses the current workload version string
+    (e.g. ``"1.0.0"``) as the key, and a JSON-encoded dict as the value.  The only
+    field currently stored per version is the OpenFGA authorization model ID::
+
+        { "1.0.0": '{"openfga_model_id": "<ulid>"}' }
+
+    Only app-level data is used; unit-level data is intentionally left empty.
+    The leader unit is the sole writer; all units read.
+    """
 
     def __init__(self, model: "Model") -> None:
         self._model = model
         self._app = model.app
 
-    def __getitem__(self, key: str) -> dict[str, str] | str:
+    def __getitem__(self, key: str) -> dict[str, Any]:
         """Get a value from the peer relation data."""
         if not (peers := self._model.get_relation(PEER_INTEGRATION_NAME)):
             return {}
@@ -385,7 +395,7 @@ class PeerData:
 
         peers.data[self._app][key] = json.dumps(value)
 
-    def pop(self, key: str) -> dict[str, str] | str:
+    def pop(self, key: str) -> dict[str, Any]:
         """Remove and return a value from the peer relation data."""
         if not (peers := self._model.get_relation(PEER_INTEGRATION_NAME)):
             return {}

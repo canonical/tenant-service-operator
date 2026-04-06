@@ -1,6 +1,7 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import json
 from unittest.mock import MagicMock, PropertyMock, create_autospec
 
 import pytest
@@ -9,7 +10,7 @@ from ops.model import Container, Unit
 from pytest_mock import MockerFixture
 
 from charm import TenantServiceOperatorCharm
-from constants import OAUTH_INTEGRATION_NAME, WORKLOAD_CONTAINER
+from constants import OAUTH_INTEGRATION_NAME, OPENFGA_MODEL_ID, WORKLOAD_CONTAINER
 
 
 # ---------------------------------------------------------------------------
@@ -261,11 +262,17 @@ def openfga_relation(openfga_relation_data: dict) -> testing.Relation:
 
 
 @pytest.fixture
-def peer_relation(mocked_workload_service_version: MagicMock) -> testing.PeerRelation:
+def peer_relation(
+    mocked_workload_service_version: MagicMock, openfga_model_id: str
+) -> testing.PeerRelation:
     return testing.PeerRelation(
         endpoint="tenant-service",
         interface="tenant_service_peers",
-        local_app_data={mocked_workload_service_version.return_value: '{"some": "data"}'},
+        local_app_data={
+            mocked_workload_service_version.return_value: json.dumps(
+                {OPENFGA_MODEL_ID: openfga_model_id}
+            )
+        },
     )
 
 
@@ -388,6 +395,11 @@ def mocked_kratos_info_integration_exists(mocker: MockerFixture) -> MagicMock:
 
 
 @pytest.fixture
+def mocked_peer_integration_exists(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch("charm.peer_integration_exists", return_value=True)
+
+
+@pytest.fixture
 def all_satisfied_conditions(
     mocked_container_connectivity: MagicMock,
     mocked_secrets_is_ready: MagicMock,
@@ -398,6 +410,7 @@ def all_satisfied_conditions(
     mocked_migration_is_ready: MagicMock,
     mocked_openfga_integration_exists: MagicMock,
     mocked_kratos_info_integration_exists: MagicMock,
+    mocked_peer_integration_exists: MagicMock,
 ) -> None:
     pass
 

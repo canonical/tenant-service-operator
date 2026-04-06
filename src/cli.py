@@ -7,7 +7,6 @@ import json
 import logging
 import re
 from dataclasses import asdict, dataclass, field
-from typing import BinaryIO, Optional, TextIO
 
 from ops.model import Container
 from ops.pebble import Error, ExecError
@@ -25,10 +24,10 @@ logger = logging.getLogger(__name__)
 class CmdExecConfig:
     """Command Execution Config."""
 
-    service_context: Optional[str] = None
+    service_context: str | None = None
     environment: EnvVars = field(default_factory=dict)
     timeout: float = 20
-    stdin: Optional[str | bytes | TextIO | BinaryIO] = None
+    stdin: str | None = None
 
 
 class CommandLine:
@@ -37,7 +36,7 @@ class CommandLine:
     def __init__(self, container: Container):
         self.container = container
 
-    def get_service_version(self) -> Optional[str]:
+    def get_service_version(self) -> str | None:
         """Get the version of the tenant-service workload.
 
         Returns:
@@ -52,7 +51,7 @@ class CommandLine:
         matched = VERSION_REGEX.search(stdout)
         return matched.group("version") if matched else None
 
-    def create_openfga_model(self, url: str, api_token: str, store_id: str) -> Optional[str]:
+    def create_openfga_model(self, url: str, api_token: str, store_id: str) -> str:
         """Create an OpenFGA authorization model.
 
         Args:
@@ -61,10 +60,11 @@ class CommandLine:
             store_id: The OpenFGA store ID.
 
         Returns:
-            The model ID, or None if it could not be determined.
+            The model ID.
 
         Raises:
-            CreateFgaStoreError: If the model creation fails.
+            CreateFgaStoreError: If the model creation fails or the response
+                does not contain a model ID.
         """
         cmd = [
             "tenant-service",
@@ -84,7 +84,10 @@ class CommandLine:
             logger.error("Failed to create the OpenFGA model: %s", err)
             raise CreateFgaStoreError from err
         out = json.loads(stdout)
-        return out.get("model_id")
+        model_id = out.get("model_id")
+        if not model_id:
+            raise CreateFgaStoreError("OpenFGA model creation response missing model_id")
+        return model_id
 
     def migrate_up(self, dsn: str, timeout: float = 120) -> None:
         """Run database migrations.
@@ -133,7 +136,7 @@ class CommandLine:
         out = json.loads(stdout)
         return out.get("status") == "ok"
 
-    def create_tenant(self, name: str, token: Optional[str] = None) -> str:
+    def create_tenant(self, name: str, token: str | None = None) -> str:
         """Create a new tenant.
 
         Args:
@@ -151,16 +154,27 @@ class CommandLine:
         )
         return stdout
 
-    def list_tenants(self, token: Optional[str] = None) -> str:
+    def list_tenants(
+        self,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        token: str | None = None,
+    ) -> str:
         """List all tenants.
 
         Args:
+            page_size: Maximum number of results per page.
+            page_token: Token to retrieve the next page of results.
             token: Optional authentication token.
 
         Returns:
             The command output.
         """
         cmd = ["tenant-service", "tenant", "list"]
+        if page_size is not None:
+            cmd.extend(["--page-size", str(page_size)])
+        if page_token is not None:
+            cmd.extend(["--page-token", page_token])
         cmd.extend(self._grpc_flags(token))
         stdout, _ = self._run_cmd(
             cmd,
@@ -168,7 +182,7 @@ class CommandLine:
         )
         return stdout
 
-    def delete_tenant(self, tenant_id: str, token: Optional[str] = None) -> str:
+    def delete_tenant(self, tenant_id: str, token: str | None = None) -> str:
         """Delete a tenant.
 
         Args:
@@ -186,7 +200,7 @@ class CommandLine:
         )
         return stdout
 
-    def activate_tenant(self, tenant_id: str, token: Optional[str] = None) -> str:
+    def activate_tenant(self, tenant_id: str, token: str | None = None) -> str:
         """Activate a tenant.
 
         Args:
@@ -204,7 +218,7 @@ class CommandLine:
         )
         return stdout
 
-    def deactivate_tenant(self, tenant_id: str, token: Optional[str] = None) -> str:
+    def deactivate_tenant(self, tenant_id: str, token: str | None = None) -> str:
         """Deactivate a tenant.
 
         Args:
@@ -222,7 +236,7 @@ class CommandLine:
         )
         return stdout
 
-    def update_tenant(self, tenant_id: str, name: str, token: Optional[str] = None) -> str:
+    def update_tenant(self, tenant_id: str, name: str, token: str | None = None) -> str:
         """Update a tenant.
 
         Args:
@@ -241,17 +255,29 @@ class CommandLine:
         )
         return stdout
 
-    def list_tenant_users(self, tenant_id: str, token: Optional[str] = None) -> str:
+    def list_tenant_users(
+        self,
+        tenant_id: str,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        token: str | None = None,
+    ) -> str:
         """List users for a tenant.
 
         Args:
             tenant_id: The tenant ID.
+            page_size: Maximum number of results per page.
+            page_token: Token to retrieve the next page of results.
             token: Optional authentication token.
 
         Returns:
             The command output.
         """
         cmd = ["tenant-service", "users", "list", tenant_id]
+        if page_size is not None:
+            cmd.extend(["--page-size", str(page_size)])
+        if page_token is not None:
+            cmd.extend(["--page-token", page_token])
         cmd.extend(self._grpc_flags(token))
         stdout, _ = self._run_cmd(
             cmd,
@@ -260,7 +286,7 @@ class CommandLine:
         return stdout
 
     def invite_user(
-        self, tenant_id: str, email: str, role: str, token: Optional[str] = None
+        self, tenant_id: str, email: str, role: str, token: str | None = None
     ) -> str:
         """Invite a user to a tenant.
 
@@ -282,7 +308,7 @@ class CommandLine:
         return stdout
 
     def provision_user(
-        self, tenant_id: str, email: str, role: str, token: Optional[str] = None
+        self, tenant_id: str, email: str, role: str, token: str | None = None
     ) -> str:
         """Provision a user for a tenant.
 
@@ -304,7 +330,7 @@ class CommandLine:
         return stdout
 
     def update_user_role(
-        self, tenant_id: str, user_id: str, role: str, token: Optional[str] = None
+        self, tenant_id: str, user_id: str, role: str, token: str | None = None
     ) -> str:
         """Update a user's role in a tenant.
 
@@ -325,7 +351,7 @@ class CommandLine:
         )
         return stdout
 
-    def _grpc_flags(self, token: Optional[str] = None) -> list[str]:
+    def _grpc_flags(self, token: str | None = None) -> list[str]:
         """Build common gRPC flags for tenant/user commands.
 
         Args:
@@ -340,7 +366,7 @@ class CommandLine:
         return flags
 
     def _run_cmd(
-        self, cmd: list[str], exec_config: Optional[CmdExecConfig] = None
+        self, cmd: list[str], exec_config: CmdExecConfig | None = None
     ) -> tuple[str, str]:
         """Run a command in the workload container.
 
