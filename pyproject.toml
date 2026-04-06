@@ -1,6 +1,52 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tenant-service-operator"
+version = "0.0.0"
+description = "Tenant Service Operator charm"
+requires-python = ">=3.10"
+dependencies = [
+    "ops~=3.0",
+    "cosl~=1.3.0",
+    "jinja2",
+    "pydantic~=2.12.0",
+    "lightkube~=0.17.2",
+    "lightkube-models~=1.34.0.8",
+    "requests~=2.32.0",
+]
+
+[project.optional-dependencies]
+fmt = ["isort", "ruff"]
+lint = ["codespell", "isort", "ruff", "tomli"]
+unit = [
+    "ops[testing]",
+    "pytest",
+    "pytest-mock",
+    "coverage[toml]",
+    "jsonschema",
+]
+integration = [
+    "jubilant",
+    "pytest",
+    "requests",
+    "tenacity",
+]
+dev = [
+    "tenant-service-operator[fmt,lint,unit,integration]",
+    "pre-commit",
+    "mypy",
+    "types-PyYAML",
+    "types-requests",
+]
+
+[tool.setuptools]
+py-modules = []
+
 # Testing tools configuration
 [tool.coverage.run]
 branch = true
@@ -102,29 +148,3 @@ module = ["ops.*", "pytest.*", "jubilant.*", "urllib3.*", "jinja2.*", "lightkube
 [tool.pyright]
 extraPaths = ["src", "lib"]
 
-[dependency-groups]
-fmt = ["isort", "ruff"]
-lint = ["codespell", "isort", "ruff"]
-unit = [
-    "ops[testing]",
-    "pytest",
-    "pytest-mock",
-    "coverage[toml]",
-    "jsonschema",
-]
-integration = [
-    "jubilant",
-    "pytest",
-    "requests",
-    "tenacity",
-]
-dev = [
-    { include-group = "fmt" },
-    { include-group = "lint" },
-    { include-group = "unit" },
-    { include-group = "integration" },
-    "pre-commit",
-    "mypy",
-    "types-PyYAML",
-    "types-requests",
-]
