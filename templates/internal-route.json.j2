@@ -1,0 +1,42 @@
+{% set identifier = "{}-{}".format(model, app) %}
+{% set svc = "http://{}.{}.svc.cluster.local:{}".format(app, model, port) %}
+
+{
+  "http": {
+    "middlewares": {
+      "juju-sidecar-noprefix-{{ identifier }}": {
+        "stripPrefix": {
+          "forceSlash": false,
+          "prefixes": ["/{{ identifier }}"]
+        }
+      }
+    },
+    "routers": {
+      "juju-{{ identifier }}-api-router": {
+        "entryPoints": ["web", "websecure"],
+        "rule": "PathPrefix(`/{{ identifier }}/api/v0/`)",
+        "middlewares": ["juju-sidecar-noprefix-{{ identifier }}"],
+        "service": "juju-{{ identifier }}-api-service",
+        "tls": {
+          "domains": [
+            {
+              "main": "{{ external_host }}",
+              "sans": ["*.{{ external_host }}"]
+            }
+          ]
+        }
+      }
+    },
+    "services": {
+      "juju-{{ identifier }}-api-service": {
+        "loadBalancer": {
+          "servers": [
+            {
+              "url": "{{ svc }}"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

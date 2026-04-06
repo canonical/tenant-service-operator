@@ -54,21 +54,16 @@ config:
         automatically deduced from it).
         See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
       type: string
-    salesforce_domain:
+    authorization_enabled:
       description: |
-        The Salesforce domain URL. E.g. https://login.test.salesfoce.com
-      type: string
-    salesforce_consumer_secret:
-      description: |
-        A secret with the consumer key/secret pair to use when calling the salesforce API.
-
-        The secret must contain the keys `consumer-key` and `consumer-secret`
-      type: secret
-    salesforce_enabled:
-      description: |
-        Whether the salesforce integration is enabled.
+        Whether the access control authorization integration is enabled.
       type: boolean
       default: true
+    invitation_lifetime:
+      description: |
+        Duration an invitation/recovery link remains valid. E.g. "24h", "48h".
+      type: string
+      default: '24h'
     authn_allowed_subjects:
       description: |
         Comma separated list of allowed subject IDs that are allowed to access the Group/Authz management APIs.
@@ -97,10 +92,95 @@ config:
 actions:
   get-access-token:
     description: |
-      Generate a JWT token for accessing the Group/Authz management APIs.
+      Generate a JWT token for accessing the tenant management APIs.
 
       This action requires the oauth integration to be established and ready.
-
+  create-tenant:
+    description: Create a new tenant.
+    params:
+      name:
+        type: string
+        description: Name of the tenant to create.
+    required: [name]
+  list-tenants:
+    description: List all tenants.
+  delete-tenant:
+    description: Delete a tenant.
+    params:
+      tenant-id:
+        type: string
+        description: ID of the tenant to delete.
+    required: [tenant-id]
+  activate-tenant:
+    description: Enable a disabled tenant.
+    params:
+      tenant-id:
+        type: string
+        description: ID of the tenant to activate.
+    required: [tenant-id]
+  deactivate-tenant:
+    description: Disable an active tenant.
+    params:
+      tenant-id:
+        type: string
+        description: ID of the tenant to deactivate.
+    required: [tenant-id]
+  update-tenant:
+    description: Update a tenant's name.
+    params:
+      tenant-id:
+        type: string
+        description: ID of the tenant to update.
+      name:
+        type: string
+        description: New name for the tenant.
+    required: [tenant-id, name]
+  list-tenant-users:
+    description: List all users in a tenant.
+    params:
+      tenant-id:
+        type: string
+        description: ID of the tenant.
+    required: [tenant-id]
+  invite-user:
+    description: Send an invitation email to join a tenant.
+    params:
+      tenant-id:
+        type: string
+        description: ID of the tenant.
+      email:
+        type: string
+        description: Email address of the user to invite.
+      role:
+        type: string
+        description: Role to assign (e.g. admin, member).
+    required: [tenant-id, email, role]
+  provision-user:
+    description: Directly add a user to a tenant without an invitation flow.
+    params:
+      tenant-id:
+        type: string
+        description: ID of the tenant.
+      email:
+        type: string
+        description: Email address of the user to provision.
+      role:
+        type: string
+        description: Role to assign (e.g. admin, member).
+    required: [tenant-id, email, role]
+  update-user-role:
+    description: Update a user's role within a tenant.
+    params:
+      tenant-id:
+        type: string
+        description: ID of the tenant.
+      user-id:
+        type: string
+        description: ID of the user.
+      role:
+        type: string
+        description: New role for the user.
+    required: [tenant-id, user-id, role]
 
 requires:
   logging:
@@ -128,6 +208,12 @@ requires:
     limit: 1
     description: |
       Receive OpenFGA server's url and store information.
+  kratos-info:
+    interface: kratos_info
+    limit: 1
+    optional: false
+    description: |
+      Receive Kratos deployment info including the admin endpoint URL.
   oauth:
     interface: oauth
     limit: 1
@@ -151,7 +237,25 @@ provides:
     interface: grafana_dashboard
     optional: true
     description: |
-      Forwards the built-in grafana dashboard(s) for monitoring hydra.
+      Forwards the built-in grafana dashboard(s) for monitoring tenant-service.
+  hydra-token-hook:
+    interface: hydra_token_hook
+    optional: true
+    description: |
+      Register a token enrichment webhook with Hydra to inject tenant_id claims
+      into access and ID tokens.
+  kratos-registration-webhook:
+    interface: kratos_registration_webhook
+    optional: true
+    description: |
+      Register a registration webhook with Kratos for tenant auto-creation
+      on user registration.
+  kratos-login-webhook:
+    interface: kratos_login_webhook
+    optional: true
+    description: |
+      Register a login validation webhook with Kratos to verify tenant
+      membership and perform lazy identity reconciliation during login.
 
 peers:
   tenant-service:
