@@ -273,7 +273,7 @@ class CommandLine:
         Returns:
             The command output.
         """
-        cmd = ["tenant-service", "users", "list", tenant_id]
+        cmd = ["tenant-service", "tenant", "users", "list", tenant_id]
         if page_size is not None:
             cmd.extend(["--page-size", str(page_size)])
         if page_token is not None:
@@ -285,9 +285,7 @@ class CommandLine:
         )
         return stdout
 
-    def invite_user(
-        self, tenant_id: str, email: str, role: str, token: str | None = None
-    ) -> str:
+    def invite_user(self, tenant_id: str, email: str, role: str, token: str | None = None) -> str:
         """Invite a user to a tenant.
 
         Args:
@@ -299,7 +297,7 @@ class CommandLine:
         Returns:
             The command output.
         """
-        cmd = ["tenant-service", "users", "invite", tenant_id, email, role]
+        cmd = ["tenant-service", "tenant", "users", "invite", tenant_id, email, role]
         cmd.extend(self._grpc_flags(token))
         stdout, _ = self._run_cmd(
             cmd,
@@ -321,7 +319,7 @@ class CommandLine:
         Returns:
             The command output.
         """
-        cmd = ["tenant-service", "users", "provision", tenant_id, email, role]
+        cmd = ["tenant-service", "tenant", "users", "provision", tenant_id, email, role]
         cmd.extend(self._grpc_flags(token))
         stdout, _ = self._run_cmd(
             cmd,
@@ -343,7 +341,7 @@ class CommandLine:
         Returns:
             The command output.
         """
-        cmd = ["tenant-service", "users", "update", tenant_id, user_id, "--role", role]
+        cmd = ["tenant-service", "tenant", "users", "update", tenant_id, user_id, "--role", role]
         cmd.extend(self._grpc_flags(token))
         stdout, _ = self._run_cmd(
             cmd,

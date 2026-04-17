@@ -269,6 +269,11 @@ provides:
     description: |
       Register a login validation webhook with Kratos to verify tenant
       membership and perform lazy identity reconciliation during login.
+  tenant-service-info:
+    interface: tenant_service_info
+    optional: true
+    description: |
+      Provides the tenant-service HTTP API URL to a related application.
 
 peers:
   tenant-service:

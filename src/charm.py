@@ -37,6 +37,7 @@ from charms.openfga_k8s.v1.openfga import (
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
+from charms.tenant_service_operator.v0.tenant_service_info import TenantServiceInfoProvider
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 
 from cli import CommandLine
@@ -48,6 +49,7 @@ from constants import (
     CERTIFICATE_TRANSFER_INTEGRATION_NAME,
     DATABASE_INTEGRATION_NAME,
     GRAFANA_DASHBOARD_INTEGRATION_NAME,
+    GRPC_PORT,
     INTERNAL_ROUTE_INTEGRATION_NAME,
     KRATOS_INFO_INTEGRATION_NAME,
     LOCAL_CERTIFICATES_PATH,
@@ -83,6 +85,7 @@ from integrations import (
     OpenFGAIntegration,
     OpenFGAModelData,
     PeerData,
+    TenantServiceInfoIntegration,
     TLSCertificates,
     TracingData,
 )
@@ -131,6 +134,11 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         self.kratos_login_webhook = KratosLoginWebhookProvider(self)
         self.kratos_login_webhook_integration = KratosLoginWebhookIntegration(
             self.kratos_login_webhook
+        )
+
+        self.tenant_service_info_provider = TenantServiceInfoProvider(self)
+        self.tenant_service_info_integration = TenantServiceInfoIntegration(
+            self.tenant_service_info_provider
         )
 
         self.openfga_requirer = OpenFGARequires(
@@ -193,6 +201,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         self.framework.observe(self.on.leader_settings_changed, self._on_leader_settings_changed)
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
         self.framework.observe(self.on.secret_changed, self._on_secret_changed)
+        self.framework.observe(self.on.update_status, self._holistic_handler)
 
         # Actions
         self.framework.observe(self.on.get_access_token_action, self._on_get_access_token_action)
@@ -356,6 +365,18 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         )
 
     @property
+    def _service_url(self) -> str:
+        """Get the base HTTP service URL for the tenant-service."""
+        if internal_url := InternalIngressData.load(self.internal_ingress).url:
+            return str(internal_url)
+        return f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{PORT}"
+
+    @property
+    def _grpc_url(self) -> str:
+        """Get the gRPC service URL for the tenant-service."""
+        return f"{self.app.name}.{self.model.name}.svc.cluster.local:{GRPC_PORT}"
+
+    @property
     def migration_needed(self) -> bool:
         """Check if database migration is needed."""
         if not self.database_requirer.is_resource_created():
@@ -398,6 +419,14 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             self.kratos_login_webhook_integration.update_relation_data(
                 self._kratos_login_webhook_url,
                 self._secrets.api_token,
+            )
+        return True
+
+    def _ensure_tenant_service_info(self) -> bool:
+        """Ensure the tenant-service-info relation data is published."""
+        if self.unit.is_leader():
+            self.tenant_service_info_integration.update_relations_app_data(
+                self._service_url, self._grpc_url
             )
         return True
 
@@ -492,7 +521,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             # Remove the cert file so the next reconciliation retries the subprocess.
             LOCAL_CHARM_CERTIFICATES_FILE.unlink(missing_ok=True)
             return True
-        self._workload_service.update_ca_certs()
+        self._tls_cert_changed = self._workload_service.update_ca_certs()
         return True
 
     def _holistic_handler(self, event: ops.EventBase) -> None:
@@ -500,12 +529,14 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         if not all(condition(self) for condition in NOOP_CONDITIONS):
             return
 
+        self._tls_cert_changed = False
         can_plan = True
         for f in [
             self._ensure_secrets,
             self._ensure_hydra_relation,
             self._ensure_kratos_registration_webhook,
             self._ensure_kratos_login_webhook,
+            self._ensure_tenant_service_info,
             self._ensure_internal_ingress,
             self._ensure_database_migration,
             self._ensure_openfga_model,
@@ -514,19 +545,23 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             try:
                 can_plan = can_plan and f()
             except CharmError:
+                logger.exception("Error in %s", f.__name__)
                 can_plan = False
 
         if not can_plan:
             return
 
         try:
-            self._pebble_service.plan(self._pebble_layer)
+            # force_restart=True when the CA bundle changed: Go's crypto/x509
+            # loads the system cert pool once via sync.Once on the first TLS
+            # dial; pushing a new ca-certificates.crt into the container is
+            # not picked up by the running process without a restart.
+            self._pebble_service.plan(self._pebble_layer, force_restart=self._tls_cert_changed)
         except PebbleError:
             logger.error(
                 "Failed to plan pebble layer, please check the %s container logs",
                 WORKLOAD_CONTAINER,
             )
-            raise
 
     def _get_migration_status(self) -> ops.StatusBase | None:
         """Get the migration status for collect-status."""
@@ -906,5 +941,5 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         return adjust_resource_requirements(limits, requests, adhere_to_requests=True)
 
 
-if __name__ == "__main__":  # pragma: nocover
+if __name__ == "__main__":
     ops.main(TenantServiceOperatorCharm)

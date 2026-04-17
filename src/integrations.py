@@ -3,6 +3,7 @@
 
 """Helper classes for managing the charm's integrations."""
 
+import base64
 import json
 import logging
 from dataclasses import dataclass, field
@@ -31,6 +32,9 @@ from charms.kratos.v0.kratos_registration_webhook import (
 )
 from charms.openfga_k8s.v1.openfga import OpenFGARequires
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
+from charms.tenant_service_operator.v0.tenant_service_info import (
+    TenantServiceInfoProvider,
+)
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from jinja2 import Template
 from ops.model import Model
@@ -189,7 +193,7 @@ class KratosInfoData:
             return cls()
         if not relation.app:
             return cls()
-        return cls(admin_url=relation.data[relation.app].get("admin_url", ""))
+        return cls(admin_url=relation.data[relation.app].get("admin_endpoint", ""))
 
 
 class KratosRegistrationWebhookIntegration:
@@ -207,10 +211,15 @@ class KratosRegistrationWebhookIntegration:
 
     def update_relation_data(self, webhook_url: str, api_token: str) -> None:
         """Update the kratos-registration-webhook relation data."""
+        _body = b"""function(ctx) {
+  identity_id: ctx.identity.id,
+  email: ctx.identity.traits.email,
+  tenant_id: if std.objectHas(ctx, "flow") && std.objectHas(ctx.flow, "transient_payload") && std.objectHas(ctx.flow.transient_payload, "tenant_id") then ctx.flow.transient_payload.tenant_id else "",
+}"""
         self._provider.update_relations_app_data(
             KratosRegistrationProviderData(
                 url=webhook_url,
-                body="function(ctx) { user_id: ctx.identity.id, email: ctx.identity.traits.email }",
+                body=f"base64://{base64.b64encode(_body).decode()}",
                 method="POST",
                 response_ignore=True,
                 response_parse=False,
@@ -232,16 +241,32 @@ class KratosLoginWebhookIntegration:
 
     def update_relation_data(self, webhook_url: str, api_token: str) -> None:
         """Update the kratos-login-webhook relation data."""
+        _body = b"""function(ctx) {
+  identity_id: ctx.identity.id,
+  email: ctx.identity.traits.email,
+  tenant_id: if std.objectHas(ctx, "flow") && std.objectHas(ctx.flow, "transient_payload") && std.objectHas(ctx.flow.transient_payload, "tenant_id") then ctx.flow.transient_payload.tenant_id else "",
+}"""
         self._provider.update_relations_app_data(
             KratosLoginProviderData(
                 url=webhook_url,
-                body="function(ctx) { user_id: ctx.identity.id, email: ctx.identity.traits.email }",
+                body=f"base64://{base64.b64encode(_body).decode()}",
                 method="POST",
                 response_ignore=True,
                 response_parse=False,
                 auth_config_value=api_token,
             )
         )
+
+
+class TenantServiceInfoIntegration:
+    """Wraps the TenantServiceInfoProvider library."""
+
+    def __init__(self, provider: TenantServiceInfoProvider) -> None:
+        self._provider = provider
+
+    def update_relations_app_data(self, service_url: str, grpc_url: str) -> None:
+        """Publish the tenant-service HTTP and gRPC URLs into all active relation databags."""
+        self._provider.update_relations_app_data(service_url=service_url, grpc_url=grpc_url)
 
 
 @dataclass(frozen=True, slots=True)

@@ -116,8 +116,12 @@ class WorkloadService:
         )
         return model_id or ""
 
-    def update_ca_certs(self) -> None:
-        """Update the CA certificates in the workload container."""
+    def update_ca_certs(self) -> bool:
+        """Update the CA certificates in the workload container.
+
+        Returns:
+            True if the certificate bundle was updated, False if it was already current.
+        """
         ca_certs = LOCAL_CERTIFICATES_FILE.read_text() if LOCAL_CERTIFICATES_FILE.exists() else ""
         current = (
             self._container.pull(CERTIFICATES_FILE).read()
@@ -125,8 +129,9 @@ class WorkloadService:
             else ""
         )
         if current == ca_certs:
-            return
+            return False
         self._container.push(CERTIFICATES_FILE, ca_certs, make_dirs=True)
+        return True
 
 
 class PebbleService:
@@ -150,18 +155,20 @@ class PebbleService:
         else:
             self._container.replan()
 
-    def plan(self, layer: Layer) -> None:
+    def plan(self, layer: Layer, force_restart: bool = False) -> None:
         """Apply a pebble layer and restart the workload service.
 
         Args:
             layer: The pebble layer to apply.
+            force_restart: If True, restart the service even if the layer is unchanged.
+                Use this when non-layer resources (e.g. CA certificates) have changed.
 
         Raises:
             PebbleError: If the service fails to restart.
         """
         self._container.add_layer(WORKLOAD_SERVICE, layer, combine=True)
         try:
-            self._restart_service()
+            self._restart_service(restart=force_restart)
         except Exception as e:
             raise PebbleError(f"Pebble failed to restart the workload service. Error: {e}")
 
