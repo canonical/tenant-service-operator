@@ -16,5 +16,16 @@ output "requires" {
     receive-ca-cert = "receive-ca-cert"
     pg-database     = "pg-database"
     internal-route  = "internal-route"
+    kratos-info     = "kratos-info"
+  }
+}
+
+output "provides" {
+  description = "The Juju integrations that the charm provides"
+  value = {
+    tenant-service-info         = "tenant-service-info"
+    hydra-token-hook            = "hydra-token-hook"
+    kratos-registration-webhook = "kratos-registration-webhook"
+    kratos-login-webhook        = "kratos-login-webhook"
   }
 }
