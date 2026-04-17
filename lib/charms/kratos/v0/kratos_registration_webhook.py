@@ -14,7 +14,7 @@ config.
 import logging
 from functools import cached_property
 from string import Template
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Literal, Optional
 
 from ops import (
     CharmBase,
@@ -40,7 +40,7 @@ from pydantic import (
 
 LIBID = "37ddb4471fae41adb74299f091ee3a28"
 LIBAPI = 0
-LIBPATCH = 4
+LIBPATCH = 5
 
 PYDEPS = ["pydantic"]
 
@@ -70,6 +70,7 @@ class ProviderData(BaseModel):
     url: str
     body: str
     method: str
+    mode: Literal["before", "after"] = "after"
     emit_analytics_event: SerializableBool = False
     response_ignore: SerializableBool
     response_parse: SerializableBool
