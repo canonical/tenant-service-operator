@@ -5,8 +5,12 @@ from unittest.mock import MagicMock, create_autospec, mock_open, patch
 
 import pytest
 from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires
+from charms.hydra.v0.hydra_token_hook import AuthIn, HydraHookProvider, ProviderData
+from charms.kratos.v0.kratos_login_webhook import KratosLoginWebhookProvider
+from charms.kratos.v0.kratos_registration_webhook import KratosRegistrationWebhookProvider
 from charms.openfga_k8s.v1.openfga import OpenfgaProviderAppData, OpenFGARequires
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
+from charms.tenant_service_operator.v0.tenant_service_info import TenantServiceInfoProvider
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from ops.model import Model
 from pydantic import AnyHttpUrl
@@ -15,11 +19,15 @@ from scenario import Relation
 from constants import PORT
 from integrations import (
     DatabaseConfig,
+    HydraHookIntegration,
     InternalIngressData,
     KratosInfoData,
+    KratosLoginWebhookIntegration,
+    KratosRegistrationWebhookIntegration,
     OpenFGAIntegration,
     OpenFGAIntegrationData,
     OpenFGAModelData,
+    TenantServiceInfoIntegration,
     TracingData,
 )
 
@@ -267,7 +275,7 @@ class TestKratosInfoData:
         mocked = create_autospec(Model)
         relation = MagicMock()
         relation.app = MagicMock()
-        relation.data = {relation.app: {"admin_url": "http://kratos-admin:4434"}}
+        relation.data = {relation.app: {"admin_endpoint": "http://kratos-admin:4434"}}
         mocked.get_relation.return_value = relation
         return mocked
 
@@ -284,3 +292,118 @@ class TestKratosInfoData:
     def test_to_env_vars(self) -> None:
         data = KratosInfoData(admin_url="http://kratos-admin:4434")
         assert data.to_env_vars() == {"KRATOS_ADMIN_URL": "http://kratos-admin:4434"}
+
+
+class TestHydraHookIntegration:
+    @pytest.fixture
+    def mocked_provider(self) -> MagicMock:
+        mocked = create_autospec(HydraHookProvider)
+        mocked._charm = MagicMock()
+        return mocked
+
+    def test_is_ready_true(self, mocked_provider: MagicMock) -> None:
+        relation = MagicMock()
+        relation.active = True
+        mocked_provider._charm.model.get_relation.return_value = relation
+        integration = HydraHookIntegration(mocked_provider)
+        assert integration.is_ready()
+
+    def test_is_ready_false_no_relation(self, mocked_provider: MagicMock) -> None:
+        mocked_provider._charm.model.get_relation.return_value = None
+        integration = HydraHookIntegration(mocked_provider)
+        assert not integration.is_ready()
+
+    def test_is_ready_false_inactive(self, mocked_provider: MagicMock) -> None:
+        relation = MagicMock()
+        relation.active = False
+        mocked_provider._charm.model.get_relation.return_value = relation
+        integration = HydraHookIntegration(mocked_provider)
+        assert not integration.is_ready()
+
+    def test_update_relation_data(self, mocked_provider: MagicMock) -> None:
+        integration = HydraHookIntegration(mocked_provider)
+        integration.update_relation_data("http://hook-url", "api-token")
+        mocked_provider.update_relations_app_data.assert_called_once_with(
+            ProviderData(
+                url="http://hook-url",
+                auth_config_name="Authorization",
+                auth_config_value="api-token",
+                auth_config_in=AuthIn.header,
+            )
+        )
+
+
+class TestKratosRegistrationWebhookIntegration:
+    @pytest.fixture
+    def mocked_provider(self) -> MagicMock:
+        mocked = create_autospec(KratosRegistrationWebhookProvider)
+        mocked._charm = MagicMock()
+        return mocked
+
+    def test_is_ready_true(self, mocked_provider: MagicMock) -> None:
+        relation = MagicMock()
+        relation.active = True
+        mocked_provider._charm.model.get_relation.return_value = relation
+        integration = KratosRegistrationWebhookIntegration(mocked_provider)
+        assert integration.is_ready()
+
+    def test_is_ready_false_no_relation(self, mocked_provider: MagicMock) -> None:
+        mocked_provider._charm.model.get_relation.return_value = None
+        integration = KratosRegistrationWebhookIntegration(mocked_provider)
+        assert not integration.is_ready()
+
+    def test_update_relation_data(self, mocked_provider: MagicMock) -> None:
+        integration = KratosRegistrationWebhookIntegration(mocked_provider)
+        integration.update_relation_data("http://webhook-url", "api-token")
+        mocked_provider.update_relations_app_data.assert_called_once()
+        call_args = mocked_provider.update_relations_app_data.call_args[0][0]
+        assert call_args.url == "http://webhook-url"
+        assert call_args.auth_config_value == "api-token"
+        assert call_args.method == "POST"
+        assert call_args.response_ignore is True
+
+
+class TestKratosLoginWebhookIntegration:
+    @pytest.fixture
+    def mocked_provider(self) -> MagicMock:
+        mocked = create_autospec(KratosLoginWebhookProvider)
+        mocked._charm = MagicMock()
+        return mocked
+
+    def test_is_ready_true(self, mocked_provider: MagicMock) -> None:
+        relation = MagicMock()
+        relation.active = True
+        mocked_provider._charm.model.get_relation.return_value = relation
+        integration = KratosLoginWebhookIntegration(mocked_provider)
+        assert integration.is_ready()
+
+    def test_is_ready_false_no_relation(self, mocked_provider: MagicMock) -> None:
+        mocked_provider._charm.model.get_relation.return_value = None
+        integration = KratosLoginWebhookIntegration(mocked_provider)
+        assert not integration.is_ready()
+
+    def test_update_relation_data(self, mocked_provider: MagicMock) -> None:
+        integration = KratosLoginWebhookIntegration(mocked_provider)
+        integration.update_relation_data("http://login-webhook-url", "login-token")
+        mocked_provider.update_relations_app_data.assert_called_once()
+        call_args = mocked_provider.update_relations_app_data.call_args[0][0]
+        assert call_args.url == "http://login-webhook-url"
+        assert call_args.auth_config_value == "login-token"
+        assert call_args.method == "POST"
+        assert call_args.response_ignore is True
+
+
+class TestTenantServiceInfoIntegration:
+    @pytest.fixture
+    def mocked_provider(self) -> MagicMock:
+        return create_autospec(TenantServiceInfoProvider)
+
+    def test_update_relations_app_data(self, mocked_provider: MagicMock) -> None:
+        integration = TenantServiceInfoIntegration(mocked_provider)
+        integration.update_relations_app_data(
+            "http://tenant-service:8080", "grpc://tenant-service:50051"
+        )
+        mocked_provider.update_relations_app_data.assert_called_once_with(
+            service_url="http://tenant-service:8080",
+            grpc_url="grpc://tenant-service:50051",
+        )

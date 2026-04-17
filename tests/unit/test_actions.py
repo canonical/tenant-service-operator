@@ -109,7 +109,9 @@ class TestActivateTenantAction:
         mocked_cli.return_value.activate_tenant.return_value = "Tenant activated"
         state = create_state()
         context.run(context.on.action("activate-tenant", params={"tenant-id": "abc"}), state)
-        mocked_cli.return_value.activate_tenant.assert_called_once_with(tenant_id="abc", token=None)
+        mocked_cli.return_value.activate_tenant.assert_called_once_with(
+            tenant_id="abc", token=None
+        )
 
     def test_failure(
         self,
@@ -139,7 +141,9 @@ class TestDeactivateTenantAction:
         mocked_cli.return_value.deactivate_tenant.return_value = "Tenant deactivated"
         state = create_state()
         context.run(context.on.action("deactivate-tenant", params={"tenant-id": "abc"}), state)
-        mocked_cli.return_value.deactivate_tenant.assert_called_once_with(tenant_id="abc", token=None)
+        mocked_cli.return_value.deactivate_tenant.assert_called_once_with(
+            tenant_id="abc", token=None
+        )
 
     def test_failure(
         self,
@@ -172,7 +176,9 @@ class TestUpdateTenantAction:
             context.on.action("update-tenant", params={"tenant-id": "abc", "name": "new"}),
             state,
         )
-        mocked_cli.return_value.update_tenant.assert_called_once_with(tenant_id="abc", name="new", token=None)
+        mocked_cli.return_value.update_tenant.assert_called_once_with(
+            tenant_id="abc", name="new", token=None
+        )
 
     def test_failure(
         self,

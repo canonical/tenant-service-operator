@@ -139,9 +139,7 @@ def _extract_tenant_id(output: str) -> str | None:
 def test_tenant_lifecycle(juju: jubilant.Juju) -> None:
     """Test the full tenant lifecycle: create, update, deactivate, activate, delete."""
     # Create
-    result = juju.run_action(
-        f"{APP_NAME}/leader", "create-tenant", name="lifecycle-tenant"
-    )
+    result = juju.run_action(f"{APP_NAME}/leader", "create-tenant", name="lifecycle-tenant")
     assert result.status == "completed"
     output = result.results.get("output", "")
     tenant_id = _extract_tenant_id(output)
@@ -156,29 +154,21 @@ def test_tenant_lifecycle(juju: jubilant.Juju) -> None:
     assert result.status == "completed"
 
     # Deactivate
-    result = juju.run_action(
-        f"{APP_NAME}/leader", "deactivate-tenant", **{"tenant-id": tenant_id}
-    )
+    result = juju.run_action(f"{APP_NAME}/leader", "deactivate-tenant", **{"tenant-id": tenant_id})
     assert result.status == "completed"
 
     # Activate
-    result = juju.run_action(
-        f"{APP_NAME}/leader", "activate-tenant", **{"tenant-id": tenant_id}
-    )
+    result = juju.run_action(f"{APP_NAME}/leader", "activate-tenant", **{"tenant-id": tenant_id})
     assert result.status == "completed"
 
     # Delete
-    result = juju.run_action(
-        f"{APP_NAME}/leader", "delete-tenant", **{"tenant-id": tenant_id}
-    )
+    result = juju.run_action(f"{APP_NAME}/leader", "delete-tenant", **{"tenant-id": tenant_id})
     assert result.status == "completed"
 
 
 def test_list_tenants_with_pagination(juju: jubilant.Juju) -> None:
     """Test the list-tenants action with explicit page-size."""
-    result = juju.run_action(
-        f"{APP_NAME}/leader", "list-tenants", **{"page-size": 10}
-    )
+    result = juju.run_action(f"{APP_NAME}/leader", "list-tenants", **{"page-size": 10})
     assert result.status == "completed"
     assert "output" in result.results
 
@@ -186,9 +176,7 @@ def test_list_tenants_with_pagination(juju: jubilant.Juju) -> None:
 def test_user_management(juju: jubilant.Juju) -> None:
     """Test user management actions for a tenant."""
     # Create a tenant to operate on
-    result = juju.run_action(
-        f"{APP_NAME}/leader", "create-tenant", name="user-mgmt-tenant"
-    )
+    result = juju.run_action(f"{APP_NAME}/leader", "create-tenant", name="user-mgmt-tenant")
     assert result.status == "completed"
     tenant_id = _extract_tenant_id(result.results.get("output", ""))
     assert tenant_id, "Could not extract tenant ID for user management tests"
@@ -234,9 +222,7 @@ def test_user_management(juju: jubilant.Juju) -> None:
         assert result.status == "completed"
     finally:
         # Clean up
-        juju.run_action(
-            f"{APP_NAME}/leader", "delete-tenant", **{"tenant-id": tenant_id}
-        )
+        juju.run_action(f"{APP_NAME}/leader", "delete-tenant", **{"tenant-id": tenant_id})
 
 
 @pytest.mark.parametrize(

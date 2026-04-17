@@ -269,9 +269,9 @@ def peer_relation(
         endpoint="tenant-service",
         interface="tenant_service_peers",
         local_app_data={
-            mocked_workload_service_version.return_value: json.dumps(
-                {OPENFGA_MODEL_ID: openfga_model_id}
-            )
+            mocked_workload_service_version.return_value: json.dumps({
+                OPENFGA_MODEL_ID: openfga_model_id
+            })
         },
     )
 
@@ -282,7 +282,7 @@ def kratos_info_relation() -> testing.Relation:
         endpoint="kratos-info",
         interface="kratos_info",
         remote_app_name="kratos",
-        remote_app_data={"admin_url": "http://kratos-admin:4434"},
+        remote_app_data={"admin_endpoint": "http://kratos-admin:4434"},
     )
 
 

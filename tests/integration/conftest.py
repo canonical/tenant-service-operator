@@ -60,7 +60,7 @@ def juju(request: pytest.FixtureRequest) -> Iterator[jubilant.Juju]:
 
 
 @pytest.fixture(scope="module")
-def local_charm(model: jubilant.Juju) -> Path:
+def local_charm(juju: jubilant.Juju) -> Path:
     """Get the path to the charm-under-test."""
     charm: str | Path | None = os.getenv("CHARM_PATH")
     if not charm:
