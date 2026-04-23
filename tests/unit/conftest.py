@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import json
+from typing import Any
 from unittest.mock import MagicMock, PropertyMock, create_autospec
 
 import pytest
@@ -165,7 +166,13 @@ def mocked_workload_service_version(mocker: MockerFixture) -> MagicMock:
 
 @pytest.fixture
 def mocked_charm_holistic_handler(mocker: MockerFixture) -> MagicMock:
-    return mocker.patch("charm.TenantServiceOperatorCharm._holistic_handler")
+    mock_fn = MagicMock()
+
+    def replacement(self: Any, event: Any) -> None:
+        mock_fn(event)
+
+    mocker.patch("charm.TenantServiceOperatorCharm._holistic_handler", replacement)
+    return mock_fn
 
 
 @pytest.fixture

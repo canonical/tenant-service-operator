@@ -101,8 +101,8 @@ OpenFGAIntegration          ──→  _holistic_handler()   ──→
 KratosInfoIntegration       ──→                        ──→
 OAuthIntegration            ──→                        ──→
 Secrets                     ──→                        ──→ Relation Databags
-                                                           (hydra-token-hook,
-                                                            kratos-registration-webhook)
+                                                           (kratos-registration-webhook,
+                                                            kratos-login-webhook)
 ```
 
 ## 4. Relations
@@ -131,7 +131,6 @@ Secrets                     ──→                        ──→ Relation 
 
 | Relation Name | Interface | Direction | Library Source | Purpose | Decision |
 |---------------|-----------|-----------|---------------|---------|----------|
-| `hydra-token-hook` | `hydra_token_hook` | provides | `charms.hydra.v0.hydra_token_hook` (existing) | Register webhook URL with Hydra for token enrichment (`/api/v0/webhooks/token`) | **Reuse existing library** — same `ProviderData` model; see [ADR-0002](../adr/0002-hydra-token-hook-reuse.md) |
 | `kratos-registration-webhook` | `kratos_registration_webhook` | provides | `charms.kratos.v0.kratos_registration_webhook` (existing) | Register registration webhook with Kratos (`/api/v0/webhooks/registration`) | **Reuse existing library** — see [ADR-0003](../adr/0003-kratos-registration-webhook.md) |
 | `kratos-login-webhook` | `kratos_login_webhook` | provides | **New library** (`charms.kratos.v0.kratos_login_webhook`) | Register login validation webhook with Kratos (`/api/v0/webhooks/login`) | **New library** (Option B) — see [ADR-0004](../adr/0004-kratos-login-webhook.md) |
 
@@ -152,7 +151,7 @@ Secrets                     ──→                        ──→ Relation 
         ────────            │            ────────
   pg-database ◄─────────────┤──────────► metrics-endpoint
   openfga ◄─────────────────┤──────────► grafana-dashboard
-  kratos-info ◄─────────────┤──────────► hydra-token-hook
+  kratos-info ◄─────────────┤──────────► tenant-service-info
   oauth ◄───────────────────┤──────────► kratos-registration-webhook
   logging ◄─────────────────┤──────────► kratos-login-webhook (NEW)
   tracing ◄─────────────────┤
@@ -237,9 +236,9 @@ If any of these return `False`, the handler returns early without action:
 Executed in order; each returns `bool`. Short-circuit on failure:
 
 1. `_ensure_secrets` — Create API token secret if leader
-2. `_ensure_hydra_relation` — Push webhook URL + token to Hydra via `hydra-token-hook` relation
-3. `_ensure_kratos_registration_webhook` — Push webhook URL + token to Kratos via `kratos-registration-webhook` relation
-4. `_ensure_kratos_login_webhook` — Push webhook URL + token to Kratos via `kratos-login-webhook` relation (NEW)
+2. `_ensure_kratos_registration_webhook` — Push webhook URL + token to Kratos via `kratos-registration-webhook` relation
+3. `_ensure_kratos_login_webhook` — Push webhook URL + token to Kratos via `kratos-login-webhook` relation (NEW)
+4. `_ensure_tenant_service_info` — Publish HTTP/gRPC URLs via `tenant-service-info` relation
 5. `_ensure_internal_ingress` — Submit Traefik route config
 6. `_ensure_database_migration` — Run `tenant-service migrate up` (leader only)
 7. `_ensure_openfga_model` — Run `tenant-service create-fga-model` (leader only)
@@ -336,8 +335,7 @@ juju integrate tenant-service:kratos-info kratos:kratos-info
 juju integrate tenant-service:kratos-registration-webhook kratos:kratos-registration-webhook
 # juju integrate tenant-service:kratos-login-webhook kratos:kratos-login-webhook  # NEW
 
-# Hydra (token hook + OAuth)
-juju integrate tenant-service:hydra-token-hook hydra
+# Hydra (OAuth)
 juju integrate tenant-service:oauth hydra
 
 # Observability
@@ -367,7 +365,6 @@ juju integrate tenant-service:receive-ca-cert self-signed-certificates
 - [ ] `src/utils.py` — Conditions and helpers
 - [ ] `templates/internal-route.json.j2`
 - [ ] Unit tests (`tests/unit/`)
-- [ ] `charmcraft.yaml` updates (remove Salesforce config)
 
 ### Phase 2 — Kratos Integration
 
@@ -377,7 +374,7 @@ juju integrate tenant-service:receive-ca-cert self-signed-certificates
 
 ### Phase 3 — Hydra Integration
 
-- [ ] `hydra-token-hook` relation — register token hook webhook
+- [x] ~~`hydra-token-hook` relation~~ — **Removed**: hook-service now owns the Hydra token hook; see [ADR-0007](../adr/0007-remove-hydra-token-hook.md)
 - [ ] `oauth` relation — receive OAuth client credentials
 - [ ] `get-access-token` action
 
@@ -397,11 +394,15 @@ juju integrate tenant-service:receive-ca-cert self-signed-certificates
 
 ## 15. Known Limitations
 
-### ⚠️ Hydra Token Hook Coexistence (CRITICAL)
+### Hydra Token Hook — Single Provider Constraint
 
-Hydra supports only **one** `hydra-token-hook` relation at a time. The tenant-service
-replaces the hook-service as the token hook provider. This means hook-service group
-enrichment is lost when tenant-service takes over. **This must be resolved at the
-application level before production use where both services coexist.**
+Hydra supports only **one** `hydra-token-hook` relation at a time. Two deployment
+topologies are supported:
 
-See [ADR-0002](../adr/0002-hydra-token-hook-reuse.md) for details and possible resolutions.
+- **With hook-service** (recommended): hook-service provides `hydra-token-hook` to Hydra
+  and calls tenant-service's lookup API for tenant membership. Both `groups` and `tenant_id`
+  are injected. Do **not** also integrate `tenant-service:hydra-token-hook` with Hydra.
+- **Without hook-service**: tenant-service provides `hydra-token-hook` directly to Hydra.
+  Only `tenant_id` is injected; `groups` enrichment is not available.
+
+See [ADR-0002](../adr/0002-hydra-token-hook-reuse.md) and [ADR-0007](../adr/0007-remove-hydra-token-hook.md).

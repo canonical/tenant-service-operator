@@ -14,7 +14,7 @@ config.
 import logging
 from functools import cached_property
 from string import Template
-from typing import Annotated, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
 from ops import (
     CharmBase,
@@ -38,7 +38,7 @@ from pydantic import (
     field_serializer,
 )
 
-LIBID = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+LIBID = "070d0bcbc42042309cc556b43f3f77fd"
 LIBAPI = 0
 LIBPATCH = 2
 
@@ -71,6 +71,9 @@ class ProviderData(BaseModel):
     body: str
     method: str
     mode: Literal["before", "after"] = "after"
+    # weight controls the rendering order within a Kratos hook phase.
+    # Lower values render first. Must be >= 0. Default 0.
+    weight: int = 0
     emit_analytics_event: SerializableBool = False
     response_ignore: SerializableBool
     response_parse: SerializableBool
@@ -229,3 +232,20 @@ class KratosLoginWebhookRequirer(Object):
             if secret := self._get_secret(secret_id):
                 provider_data["auth_config_value"] = secret.get_content().get("auth-config-value")
         return ProviderData(**provider_data) if provider_data else None
+
+    def _is_relation_active(self, relation: Relation) -> bool:
+        """Whether the relation is active based on contained data."""
+        try:
+            _ = repr(relation.data)
+            return True
+        except (RuntimeError, ModelError):
+            return False
+
+    @property
+    def relations(self) -> List[Relation]:
+        """The list of Relation instances associated with this relation_name."""
+        return [
+            relation
+            for relation in self._charm.model.relations[self._relation_name]
+            if self._is_relation_active(relation)
+        ]

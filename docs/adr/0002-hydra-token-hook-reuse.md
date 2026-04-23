@@ -1,6 +1,6 @@
 # ADR-0002: Reuse hydra_token_hook Library for Token Hook
 
-**Status**: Accepted
+**Status**: Accepted (amended by [ADR-0007](0007-remove-hydra-token-hook.md))
 **Date**: 2026-04-03
 **Deciders**: Canonical Identity Team
 

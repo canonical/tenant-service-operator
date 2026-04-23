@@ -5,24 +5,15 @@
  * tenant-service charm using the Juju Terraform provider.
  */
 
-locals {
-  charmcraft = yamldecode(file("${path.module}/../charmcraft.yaml"))
-  oci_image = {
-    "oci-image" : local.charmcraft.resources.oci-image.upstream-source
-  }
-  resources = merge(local.oci_image, var.resources)
-}
-
 resource "juju_application" "application" {
   name       = var.app_name
   model_uuid = var.model
   trust      = true
   config = merge(
     var.config,
-    { salesforce_consumer_secret = format("secret:%s", var.salesforce_credentials_secret_id) }
   )
   constraints = var.constraints
-  resources   = local.resources
+  resources   = var.resources
   units       = var.units
 
   charm {

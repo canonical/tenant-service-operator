@@ -40,7 +40,7 @@ from pydantic import (
 
 LIBID = "37ddb4471fae41adb74299f091ee3a28"
 LIBAPI = 0
-LIBPATCH = 5
+LIBPATCH = 6
 
 PYDEPS = ["pydantic"]
 
@@ -71,6 +71,13 @@ class ProviderData(BaseModel):
     body: str
     method: str
     mode: Literal["before", "after"] = "after"
+    # all_methods: when True the webhook is added to every enabled registration
+    # method section (password, oidc, webauthn, code). When False (default) it
+    # is only added to the oidc section. UVS keeps the default False.
+    all_methods: SerializableBool = False
+    # weight controls the rendering order within a Kratos hook phase.
+    # Lower values render first. Must be >= 0. Default 0.
+    weight: int = 0
     emit_analytics_event: SerializableBool = False
     response_ignore: SerializableBool
     response_parse: SerializableBool
