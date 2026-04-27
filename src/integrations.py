@@ -221,6 +221,7 @@ class KratosRegistrationWebhookIntegration:
                 url=webhook_url,
                 body=f"base64://{base64.b64encode(_body).decode()}",
                 method="POST",
+                weight=1,
                 response_ignore=True,
                 response_parse=False,
                 auth_config_value=api_token,
