@@ -3,8 +3,8 @@
 
 """Helper class to manage the charm's services."""
 
+import copy
 import logging
-from typing import Optional
 
 from ops import Container, ModelError, Unit
 from ops.pebble import CheckStatus, Layer, LayerDict, ServiceInfo
@@ -62,7 +62,7 @@ class WorkloadService:
             self._version = self._cli.get_service_version() or ""
         return self._version
 
-    def get_service(self) -> Optional[ServiceInfo]:
+    def get_service(self) -> ServiceInfo | None:
         """Get the pebble service info."""
         try:
             return self._container.get_service(WORKLOAD_SERVICE)
@@ -89,11 +89,13 @@ class WorkloadService:
 
     def is_failing(self) -> bool:
         """Check if the workload service health check is failing."""
-        if not self.get_service():
+        if not (service := self.get_service()):
+            return False
+        if not service.is_running():
             return False
         if not (c := self._container.get_checks().get(PEBBLE_READY_CHECK_NAME)):
             return False
-        return c.failures > 0
+        return c.status == CheckStatus.DOWN
 
     def open_port(self) -> None:
         """Open the HTTP and gRPC ports on the Juju unit."""
@@ -140,7 +142,7 @@ class PebbleService:
     def __init__(self, unit: Unit) -> None:
         self._unit = unit
         self._container = unit.get_container(WORKLOAD_CONTAINER)
-        self._layer_dict: LayerDict = PEBBLE_LAYER_DICT
+        self._layer_dict: LayerDict = copy.deepcopy(PEBBLE_LAYER_DICT)
 
     def _restart_service(self, restart: bool = False) -> None:
         """Restart or start the pebble service.
@@ -175,18 +177,20 @@ class PebbleService:
     def render_pebble_layer(self, *env_var_sources: EnvVarConvertible) -> Layer:
         """Render a pebble layer with environment variables from the given sources.
 
+        Precedence (highest wins): later sources override earlier ones.
+        DEFAULT_CONTAINER_ENV is the base; each successive source's
+        ``to_env_vars()`` output is merged on top.  The intended order
+        (lowest → highest) should be: tracing, database, secrets, charm
+        config, OpenFGA model, OpenFGA integration, OAuth, Kratos info.
+
         Args:
             *env_var_sources: Objects implementing EnvVarConvertible.
 
         Returns:
             The rendered pebble Layer.
         """
-        updated_env_vars: dict[str, str | bool] = {}
+        env_vars: dict[str, str | bool] = dict(DEFAULT_CONTAINER_ENV)
         for source in env_var_sources:
-            updated_env_vars.update(source.to_env_vars())
-        env_vars = {
-            **DEFAULT_CONTAINER_ENV,
-            **updated_env_vars,
-        }
+            env_vars.update(source.to_env_vars())
         self._layer_dict["services"][WORKLOAD_SERVICE]["environment"] = env_vars
         return Layer(self._layer_dict)

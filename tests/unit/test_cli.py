@@ -9,7 +9,7 @@ from ops.model import Container
 from ops.pebble import ExecError
 
 from cli import CommandLine
-from exceptions import CreateFgaStoreError, MigrationCheckError, MigrationError
+from exceptions import CreateFgaModelError, MigrationCheckError, MigrationError
 
 
 @pytest.fixture
@@ -138,7 +138,7 @@ class TestCreateOpenfgaModel:
         )
         mocked_container.exec.return_value = process
 
-        with pytest.raises(CreateFgaStoreError):
+        with pytest.raises(CreateFgaModelError):
             cli.create_openfga_model(
                 url="http://openfga:8080", api_token="token", store_id="store-1"
             )
@@ -148,7 +148,7 @@ class TestCreateOpenfgaModel:
         process.wait_output.return_value = (json.dumps({}), "")
         mocked_container.exec.return_value = process
 
-        with pytest.raises(CreateFgaStoreError):
+        with pytest.raises(CreateFgaModelError):
             cli.create_openfga_model(
                 url="http://openfga:8080", api_token="token", store_id="store-1"
             )
@@ -241,7 +241,6 @@ class TestTenantCommands:
         assert "tenant" in call_args
         assert "update" in call_args
         assert "abc-123" in call_args
-        assert "--name" in call_args
         assert "new-name" in call_args
 
     def test_list_tenants_pagination(self, cli: CommandLine, mocked_container: MagicMock) -> None:

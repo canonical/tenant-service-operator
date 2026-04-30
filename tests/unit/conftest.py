@@ -168,10 +168,10 @@ def mocked_workload_service_version(mocker: MockerFixture) -> MagicMock:
 def mocked_charm_holistic_handler(mocker: MockerFixture) -> MagicMock:
     mock_fn = MagicMock()
 
-    def replacement(self: Any, event: Any) -> None:
+    def _on_holistic_handler(self: Any, event: Any) -> None:
         mock_fn(event)
 
-    mocker.patch("charm.TenantServiceOperatorCharm._holistic_handler", replacement)
+    mocker.patch("charm.TenantServiceOperatorCharm._on_holistic_handler", _on_holistic_handler)
     return mock_fn
 
 

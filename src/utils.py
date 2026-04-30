@@ -4,8 +4,9 @@
 """Utility functions."""
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from ops import ActiveStatus, BlockedStatus, StatusBase
 
@@ -31,12 +32,12 @@ def leader_unit(func: CharmEventHandler) -> CharmEventHandler:
     """Decorator that ensures the handler only runs on the leader unit."""
 
     @wraps(func)
-    def wrapper(charm: "TenantServiceOperatorCharm", *args: Any, **kwargs: Any) -> Optional[Any]:
+    def wrapper(charm: "TenantServiceOperatorCharm", *args: Any, **kwargs: Any) -> Any | None:
         if not charm.unit.is_leader():
             return None
         return func(charm, *args, **kwargs)
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper  # type: ignore[return-value]  # wrapper signature is compatible but mypy can't prove it for the generic TypeVar
 
 
 def integration_existence(integration_name: str) -> Condition:

@@ -7,12 +7,10 @@ import yaml
 
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 APP_NAME = METADATA["name"]
-TRAEFIK_CHARM = "traefik-k8s"
-TRAEFIK_APP = "traefik"
-DB_CHARM = "postgresql-k8s"
-DB_APP = "postgresql"
-OPENFGA_CHARM = "openfga-k8s"
-OPENFGA_APP = "openfga"
+APP_IMAGE = METADATA["resources"]["oci-image"]["upstream-source"]
+DB_APP = "postgresql-k8s"
 KRATOS_CHARM = "kratos"
 KRATOS_APP = "kratos"
+TRAEFIK_CHARM = "traefik-k8s"
+TRAEFIK_APP = "traefik"
 INGRESS_DOMAIN = "public"

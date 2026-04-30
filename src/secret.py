@@ -3,7 +3,7 @@
 
 """Helper class to manage the charm's secrets."""
 
-from typing import Optional, ValuesView
+from collections.abc import ValuesView
 
 from ops import Model, SecretNotFoundError
 
@@ -20,7 +20,7 @@ class Secrets:
     def __init__(self, model: Model) -> None:
         self._model = model
 
-    def __getitem__(self, label: str) -> Optional[dict[str, str]]:
+    def __getitem__(self, label: str) -> dict[str, str] | None:
         if label not in self.LABELS:
             return None
         try:
@@ -59,5 +59,12 @@ class Secrets:
 
     @property
     def api_token(self) -> str:
-        """Get the API token."""
-        return self[API_TOKEN_SECRET_LABEL][API_TOKEN_SECRET_KEY]
+        """Get the API token.
+
+        Raises:
+            ValueError: If the API token secret has not been created yet.
+        """
+        content = self[API_TOKEN_SECRET_LABEL]
+        if content is None:
+            raise ValueError("API token secret is not available")
+        return content[API_TOKEN_SECRET_KEY]

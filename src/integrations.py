@@ -7,7 +7,7 @@ import base64
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from charms.certificate_transfer_interface.v1.certificate_transfer import (
@@ -62,11 +62,11 @@ logger = logging.getLogger(__name__)
 class InternalIngressData:
     """The data source from the internal-ingress integration."""
 
-    url: Optional[AnyHttpUrl] = None
+    url: AnyHttpUrl | None = None
     config: dict = field(default_factory=dict)
 
     @classmethod
-    def _external_host(cls, requirer: TraefikRouteRequirer) -> Optional[str]:
+    def _external_host(cls, requirer: TraefikRouteRequirer) -> str | None:
         if not (relation := requirer._charm.model.get_relation(INTERNAL_ROUTE_INTEGRATION_NAME)):
             return
         if not relation.app:
@@ -74,7 +74,7 @@ class InternalIngressData:
         return relation.data[relation.app].get("external_host", "")
 
     @classmethod
-    def _scheme(cls, requirer: TraefikRouteRequirer) -> Optional[str]:
+    def _scheme(cls, requirer: TraefikRouteRequirer) -> str | None:
         if not (relation := requirer._charm.model.get_relation(INTERNAL_ROUTE_INTEGRATION_NAME)):
             return
         if not relation.app:
@@ -148,7 +148,7 @@ class TracingData:
 
         return TracingData(
             is_ready=is_ready,
-            http_endpoint=http_endpoint.geturl().replace(f"{http_endpoint.scheme}://", "", 1),  # type: ignore[arg-type]
+            http_endpoint=http_endpoint.geturl().replace(f"{http_endpoint.scheme}://", "", 1),  # type: ignore[arg-type]  # urlparse may return empty scheme; safe here since we parse a valid URL
             grpc_endpoint=grpc_endpoint,
         )
 

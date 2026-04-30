@@ -6,21 +6,21 @@
 
 import logging
 import subprocess
+from functools import cached_property
 from os.path import join
 from secrets import token_hex
 
 import ops
+import requests
 from charms.certificate_transfer_interface.v1.certificate_transfer import (
     CertificateTransferRequires,
 )
 from charms.data_platform_libs.v0.data_interfaces import (
-    DatabaseCreatedEvent,
-    DatabaseEndpointsChangedEvent,
     DatabaseRequires,
 )
 from charms.grafana_k8s.v0.grafana_dashboard import GrafanaDashboardProvider
 from charms.hydra.v0.hydra_token_hook import HydraHookProvider
-from charms.hydra.v0.oauth import OAuthInfoChangedEvent, OAuthInfoRemovedEvent, OAuthRequirer
+from charms.hydra.v0.oauth import OAuthRequirer
 from charms.kratos.v0.kratos_login_webhook import KratosLoginWebhookProvider
 from charms.kratos.v0.kratos_registration_webhook import KratosRegistrationWebhookProvider
 from charms.loki_k8s.v1.loki_push_api import LogForwarder
@@ -32,7 +32,6 @@ from charms.observability_libs.v0.kubernetes_compute_resources_patch import (
 )
 from charms.openfga_k8s.v1.openfga import (
     OpenFGARequires,
-    OpenFGAStoreCreateEvent,
     OpenFGAStoreRemovedEvent,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
@@ -56,6 +55,7 @@ from constants import (
     LOCAL_CHARM_CERTIFICATES_FILE,
     LOCAL_CHARM_CERTIFICATES_PATH,
     LOGGING_INTEGRATION_NAME,
+    MIGRATION_COMPLETED,
     OAUTH_INTEGRATION_NAME,
     OPENFGA_INTEGRATION_NAME,
     OPENFGA_MODEL_ID,
@@ -69,7 +69,7 @@ from constants import (
 )
 from exceptions import (
     CharmError,
-    CreateFgaStoreError,
+    CreateFgaModelError,
     MigrationCheckError,
     MigrationError,
     PebbleError,
@@ -154,7 +154,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
 
         self.internal_ingress = TraefikRouteRequirer(
             self,
-            self.model.get_relation(INTERNAL_ROUTE_INTEGRATION_NAME),  # type: ignore
+            self.model.get_relation(INTERNAL_ROUTE_INTEGRATION_NAME),  # type: ignore[arg-type]  # relation may be None; TraefikRouteRequirer accepts this
             INTERNAL_ROUTE_INTEGRATION_NAME,
             raw=True,
         )
@@ -196,12 +196,12 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         )
 
         # Lifecycle events
-        self.framework.observe(self.on.config_changed, self._on_config_changed)
-        self.framework.observe(self.on.leader_elected, self._on_leader_elected)
-        self.framework.observe(self.on.leader_settings_changed, self._on_leader_settings_changed)
+        self.framework.observe(self.on.config_changed, self._on_holistic_handler)
+        self.framework.observe(self.on.leader_elected, self._on_holistic_handler)
+        self.framework.observe(self.on.leader_settings_changed, self._on_holistic_handler)
         self.framework.observe(self.on.collect_unit_status, self._on_collect_status)
-        self.framework.observe(self.on.secret_changed, self._on_secret_changed)
-        self.framework.observe(self.on.update_status, self._holistic_handler)
+        self.framework.observe(self.on.secret_changed, self._on_holistic_handler)
+        self.framework.observe(self.on.update_status, self._on_holistic_handler)
 
         # Actions
         self.framework.observe(self.on.get_access_token_action, self._on_get_access_token_action)
@@ -217,44 +217,42 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         self.framework.observe(self.on.update_user_role_action, self._on_update_user_role_action)
 
         # Hydra token hook relation
-        self.framework.observe(self.hydra_token_hook.on.ready, self._on_hydra_hook_ready)
+        self.framework.observe(self.hydra_token_hook.on.ready, self._on_holistic_handler)
 
         # Kratos registration webhook relation
         self.framework.observe(
-            self.kratos_registration_webhook.on.ready, self._on_kratos_registration_webhook_ready
+            self.kratos_registration_webhook.on.ready, self._on_holistic_handler
         )
 
         # Kratos info relation
         self.framework.observe(
-            self.on[KRATOS_INFO_INTEGRATION_NAME].relation_changed, self._on_kratos_info_changed
+            self.on[KRATOS_INFO_INTEGRATION_NAME].relation_changed, self._on_holistic_handler
         )
         self.framework.observe(
-            self.on[KRATOS_INFO_INTEGRATION_NAME].relation_broken, self._on_kratos_info_changed
+            self.on[KRATOS_INFO_INTEGRATION_NAME].relation_broken, self._on_holistic_handler
         )
 
         # Kratos login webhook relation
-        self.framework.observe(
-            self.kratos_login_webhook.on.ready, self._on_kratos_login_webhook_ready
-        )
+        self.framework.observe(self.kratos_login_webhook.on.ready, self._on_holistic_handler)
 
         # OAuth relation
         self.framework.observe(
             self.oauth_requirer.on.oauth_info_changed,
-            self._on_oauth_info_changed,
+            self._on_holistic_handler,
         )
         self.framework.observe(
             self.oauth_requirer.on.oauth_info_removed,
-            self._on_oauth_info_changed,
+            self._on_holistic_handler,
         )
 
         # Certificate transfer relation
         self.framework.observe(
             self.certificate_transfer_requirer.on.certificate_set_updated,
-            self._on_certificate_transfer_changed,
+            self._on_holistic_handler,
         )
         self.framework.observe(
             self.certificate_transfer_requirer.on.certificates_removed,
-            self._on_certificate_transfer_changed,
+            self._on_holistic_handler,
         )
 
         # COS relations
@@ -271,6 +269,14 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             protocols=["otlp_http", "otlp_grpc"],
         )
 
+        # Peer relation
+        self.framework.observe(
+            self.on[PEER_INTEGRATION_NAME].relation_created, self._on_holistic_handler
+        )
+        self.framework.observe(
+            self.on[PEER_INTEGRATION_NAME].relation_changed, self._on_holistic_handler
+        )
+
         # Resource patching
         self.framework.observe(
             self.resources_patch.on.patch_failed, self._on_resource_patch_failed
@@ -278,10 +284,10 @@ class TenantServiceOperatorCharm(ops.CharmBase):
 
         # Database
         self.framework.observe(
-            self.database_requirer.on.database_created, self._on_database_created
+            self.database_requirer.on.database_created, self._on_holistic_handler
         )
         self.framework.observe(
-            self.database_requirer.on.endpoints_changed, self._on_database_changed
+            self.database_requirer.on.endpoints_changed, self._on_holistic_handler
         )
         self.framework.observe(
             self.on[DATABASE_INTEGRATION_NAME].relation_broken,
@@ -305,12 +311,22 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         # OpenFGA
         self.framework.observe(
             self.openfga_requirer.on.openfga_store_created,
-            self._on_openfga_store_created,
+            self._on_holistic_handler,
         )
         self.framework.observe(
             self.openfga_requirer.on.openfga_store_removed,
             self._on_openfga_store_removed,
         )
+
+    @cached_property
+    def _cached_internal_ingress(self) -> InternalIngressData:
+        """Internal ingress data, computed once per charm instance."""
+        return InternalIngressData.load(self.internal_ingress)
+
+    @cached_property
+    def _cached_database_config(self) -> DatabaseConfig:
+        """Database config, computed once per charm instance."""
+        return DatabaseConfig.load(self.database_requirer)
 
     @property
     def _pebble_layer(self) -> ops.pebble.Layer:
@@ -325,7 +341,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
 
         return self._pebble_service.render_pebble_layer(
             TracingData.load(self.tracing_requirer),
-            DatabaseConfig.load(self.database_requirer),
+            self._cached_database_config,
             self._secrets,
             self._config,
             OpenFGAModelData.load(self.peer_data[self._workload_service.version]),
@@ -337,7 +353,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
     @property
     def _hydra_hook_url(self) -> str:
         """Get the URL for the Hydra token webhook."""
-        if internal_url := InternalIngressData.load(self.internal_ingress).url:
+        if internal_url := self._cached_internal_ingress.url:
             return join(str(internal_url), "api/v0/webhooks/token")
         return (
             f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{PORT}"
@@ -347,7 +363,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
     @property
     def _kratos_login_webhook_url(self) -> str:
         """Get the URL for the Kratos login webhook."""
-        if internal_url := InternalIngressData.load(self.internal_ingress).url:
+        if internal_url := self._cached_internal_ingress.url:
             return join(str(internal_url), "api/v0/webhooks/login")
         return (
             f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{PORT}"
@@ -357,7 +373,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
     @property
     def _kratos_registration_webhook_url(self) -> str:
         """Get the URL for the Kratos registration webhook."""
-        if internal_url := InternalIngressData.load(self.internal_ingress).url:
+        if internal_url := self._cached_internal_ingress.url:
             return join(str(internal_url), "api/v0/webhooks/registration")
         return (
             f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{PORT}"
@@ -367,7 +383,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
     @property
     def _service_url(self) -> str:
         """Get the base HTTP service URL for the tenant-service."""
-        if internal_url := InternalIngressData.load(self.internal_ingress).url:
+        if internal_url := self._cached_internal_ingress.url:
             return str(internal_url)
         return f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{PORT}"
 
@@ -382,7 +398,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         if not self.database_requirer.is_resource_created():
             return False
 
-        database_config = DatabaseConfig.load(self.database_requirer)
+        database_config = self._cached_database_config
         return not self._cli.migration_check(dsn=database_config.dsn)
 
     def _ensure_secrets(self) -> bool:
@@ -437,7 +453,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             and self.internal_ingress.is_ready()
             and self.internal_ingress._relation.app is not None
         ):
-            internal_route_config = InternalIngressData.load(self.internal_ingress).config
+            internal_route_config = self._cached_internal_ingress.config
             self.internal_ingress.submit_to_traefik(internal_route_config)
         return True
 
@@ -452,16 +468,21 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             )
             return False
 
-        database_config = DatabaseConfig.load(self.database_requirer)
+        database_config = self._cached_database_config
         try:
             self._cli.migrate_up(dsn=database_config.dsn)
         except MigrationError:
             logger.error("Auto migration job failed. Please use the run-migration-up action")
             return False
+
+        self.peer_data[MIGRATION_COMPLETED] = self._workload_service.version
         return True
 
     def _ensure_openfga_model(self) -> bool:
         """Ensure the OpenFGA authorization model is created."""
+        if not self._config._config.get("authorization_enabled", True):
+            return True
+
         if not self.openfga_integration.is_store_ready():
             return False
 
@@ -478,7 +499,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             openfga_model_id = self._workload_service.create_openfga_model(
                 self.openfga_integration.openfga_integration_data
             )
-        except CreateFgaStoreError:
+        except CreateFgaModelError:
             logger.exception("Failed to create OpenFGA model")
             return False
 
@@ -520,9 +541,18 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             logger.exception("Failed to update CA certificates")
             # Remove the cert file so the next reconciliation retries the subprocess.
             LOCAL_CHARM_CERTIFICATES_FILE.unlink(missing_ok=True)
-            return True
+            return False
         self._tls_cert_changed = self._workload_service.update_ca_certs()
         return True
+
+    def _on_holistic_handler(self, event: ops.EventBase) -> None:
+        """Entry point for the centralized reconciliation handler.
+
+        Sets the unit to MaintenanceStatus while reconciling, then delegates
+        to _holistic_handler.
+        """
+        self.unit.status = ops.MaintenanceStatus("Configuring resources")
+        self._holistic_handler(event)
 
     def _holistic_handler(self, event: ops.EventBase) -> None:
         """Centralized reconciliation handler."""
@@ -581,7 +611,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
     def _on_pebble_ready(self, event: ops.PebbleReadyEvent) -> None:
         """Handle the pebble-ready event."""
         self._workload_service.open_port()
-        self._holistic_handler(event)
+        self._on_holistic_handler(event)
         self._workload_service.set_version()
 
     def _on_pebble_check_failed(self, event: ops.PebbleCheckFailedEvent) -> None:
@@ -594,79 +624,31 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         if event.info.name == PEBBLE_READY_CHECK_NAME:
             logger.info("The service is online again")
 
-    def _on_config_changed(self, event: ops.ConfigChangedEvent) -> None:
-        """Handle the config-changed event."""
-        self._holistic_handler(event)
-
-    def _on_leader_elected(self, event: ops.LeaderElectedEvent) -> None:
-        """Handle the leader-elected event."""
-        self._holistic_handler(event)
-
-    def _on_leader_settings_changed(self, event: ops.LeaderSettingsChangedEvent) -> None:
-        """Handle the leader-settings-changed event."""
-        self._holistic_handler(event)
-
-    def _on_secret_changed(self, event: ops.SecretChangedEvent) -> None:
-        """Handle the secret-changed event."""
-        self._holistic_handler(event)
-
     def _on_internal_route_changed(self, event: ops.RelationEvent) -> None:
         """Handle internal-route relation events."""
         # Needed due to how traefik_route lib handles the event
         self.internal_ingress._relation = event.relation
-        self._holistic_handler(event)
-
-    def _on_hydra_hook_ready(self, event: ops.RelationEvent) -> None:
-        """Handle the hydra-token-hook ready event."""
-        self._holistic_handler(event)
-
-    def _on_kratos_registration_webhook_ready(self, event: ops.RelationEvent) -> None:
-        """Handle the kratos-registration-webhook ready event."""
-        self._holistic_handler(event)
-
-    def _on_kratos_login_webhook_ready(self, event: ops.RelationEvent) -> None:
-        """Handle the kratos-login-webhook ready event."""
-        self._holistic_handler(event)
-
-    def _on_kratos_info_changed(self, event: ops.RelationEvent) -> None:
-        """Handle kratos-info relation events."""
-        self._holistic_handler(event)
-
-    def _on_oauth_info_changed(self, event: OAuthInfoChangedEvent | OAuthInfoRemovedEvent) -> None:
-        """Handle OAuth info changed/removed events."""
-        self._holistic_handler(event)
-
-    def _on_certificate_transfer_changed(self, event: ops.EventBase) -> None:
-        """Handle certificate transfer changed/removed events."""
-        self._holistic_handler(event)
-
-    def _on_database_created(self, event: DatabaseCreatedEvent) -> None:
-        """Handle the database-created event."""
-        self._holistic_handler(event)
-
-    def _on_database_changed(self, event: DatabaseEndpointsChangedEvent) -> None:
-        """Handle the database-endpoints-changed event."""
-        self._holistic_handler(event)
+        self._on_holistic_handler(event)
 
     def _on_database_integration_broken(self, event: ops.RelationBrokenEvent) -> None:
         """Handle the database relation-broken event."""
-        self._holistic_handler(event)
-
-    def _on_openfga_store_created(self, event: OpenFGAStoreCreateEvent) -> None:
-        """Handle the openfga-store-created event."""
-        self._holistic_handler(event)
+        if self._container.can_connect():
+            try:
+                self._container.stop(WORKLOAD_CONTAINER)
+            except ops.pebble.Error:
+                logger.warning("Failed to stop workload service after database relation broken")
 
     def _on_openfga_store_removed(self, event: OpenFGAStoreRemovedEvent) -> None:
         """Handle the openfga-store-removed event."""
         if self.unit.is_leader():
             self.peer_data.pop(key=self._workload_service.version)
 
-        self._holistic_handler(event)
+        self._on_holistic_handler(event)
 
     def _on_resource_patch_failed(self, event: K8sResourcePatchFailedEvent) -> None:
         """Handle the resource-patch-failed event."""
         logger.error("Resource patching failed: %s", event.message)
-        self._holistic_handler(event)
+        self._on_holistic_handler(event)
 
     # Status
 
@@ -691,6 +673,9 @@ class TenantServiceOperatorCharm(ops.CharmBase):
                     f"{WORKLOAD_CONTAINER} container logs"
                 )
             )
+
+        if can_connect and not self._workload_service.is_running():
+            event.add_status(ops.WaitingStatus("Waiting for the service to start"))
 
         self._collect_integration_statuses(event)
 
@@ -746,7 +731,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
                     client_id=provider_info.client_id,
                     client_secret=provider_info.client_secret,
                 )
-        except Exception:
+        except (requests.RequestException, KeyError, ValueError):
             logger.warning("Failed to obtain management token")
             return None
 

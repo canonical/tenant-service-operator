@@ -13,7 +13,7 @@ from ops.pebble import Error, ExecError
 
 from constants import GRPC_PORT, WORKLOAD_SERVICE
 from env_vars import EnvVars
-from exceptions import CreateFgaStoreError, MigrationCheckError, MigrationError
+from exceptions import CreateFgaModelError, MigrationCheckError, MigrationError
 
 VERSION_REGEX = re.compile(r"App Version:\s*(?P<version>\S+)\s*$")
 
@@ -63,7 +63,7 @@ class CommandLine:
             The model ID.
 
         Raises:
-            CreateFgaStoreError: If the model creation fails or the response
+            CreateFgaModelError: If the model creation fails or the response
                 does not contain a model ID.
         """
         cmd = [
@@ -82,11 +82,11 @@ class CommandLine:
             stdout, _ = self._run_cmd(cmd)
         except Error as err:
             logger.error("Failed to create the OpenFGA model: %s", err)
-            raise CreateFgaStoreError from err
+            raise CreateFgaModelError from err
         out = json.loads(stdout)
         model_id = out.get("model_id")
         if not model_id:
-            raise CreateFgaStoreError("OpenFGA model creation response missing model_id")
+            raise CreateFgaModelError("OpenFGA model creation response missing model_id")
         return model_id
 
     def migrate_up(self, dsn: str, timeout: float = 120) -> None:
@@ -123,10 +123,7 @@ class CommandLine:
         """
         cmd = ["tenant-service", "migrate", "check", "--dsn", dsn, "-f", "json"]
         try:
-            stdout, stderr = self._run_cmd(
-                cmd,
-                exec_config=CmdExecConfig(service_context=WORKLOAD_SERVICE),
-            )
+            stdout, stderr = self._run_cmd(cmd)
         except Error as err:
             logger.error("Failed to check migration status: %s", err)
             raise MigrationCheckError("Failed to check migration status") from err
@@ -247,7 +244,7 @@ class CommandLine:
         Returns:
             The command output.
         """
-        cmd = ["tenant-service", "tenant", "update", tenant_id, "--name", name]
+        cmd = ["tenant-service", "tenant", "update", tenant_id, name]
         cmd.extend(self._grpc_flags(token))
         stdout, _ = self._run_cmd(
             cmd,
@@ -353,14 +350,15 @@ class CommandLine:
         """Build common gRPC flags for tenant/user commands.
 
         Args:
-            token: Optional authentication token.
+            token: Optional authentication token. When None a placeholder is
+                used because the server requires the header even when
+                authentication is disabled.
 
         Returns:
             A list of CLI flags.
         """
         flags = ["--grpc-endpoint", f"localhost:{GRPC_PORT}"]
-        if token:
-            flags.extend(["--token", token])
+        flags.extend(["--token", token or "no-token"])
         return flags
 
     def _run_cmd(

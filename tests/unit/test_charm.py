@@ -1,9 +1,11 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import subprocess
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import ops
 import pytest
 from ops import StatusBase, testing
 from ops.testing import ActionFailed
@@ -594,14 +596,27 @@ class TestDatabaseEvents:
     def test_on_database_integration_broken(
         self,
         context: testing.Context,
-        mocked_charm_holistic_handler: MagicMock,
         database_relation: testing.Relation,
+        mocker: MockerFixture,
     ) -> None:
+        """Test that database relation-broken stops the workload service."""
+        mock_stop = mocker.patch("ops.model.Container.stop")
         state = create_state(relations=[database_relation])
 
         context.run(context.on.relation_broken(database_relation), state)
 
-        mocked_charm_holistic_handler.assert_called_once()
+        mock_stop.assert_called_once_with(WORKLOAD_CONTAINER)
+
+    def test_on_database_integration_broken_container_not_connected(
+        self,
+        context: testing.Context,
+        database_relation: testing.Relation,
+    ) -> None:
+        """Test that database relation-broken handles disconnected container gracefully."""
+        state = create_state(relations=[database_relation], can_connect=False)
+
+        # Should not raise
+        context.run(context.on.relation_broken(database_relation), state)
 
 
 class TestOpenFGAEvents:
@@ -768,3 +783,72 @@ class TestKratosLoginWebhookEvents:
         context.run(context.on.relation_created(kratos_login_webhook_relation), state)
 
         mocked_charm_holistic_handler.assert_called_once()
+
+
+class TestTLSFailure:
+    def test_ensure_tls_subprocess_failure_blocks_plan(
+        self,
+        context: testing.Context,
+        database_relation: testing.Relation,
+        openfga_relation: testing.Relation,
+        openfga_secret: testing.Secret,
+        peer_relation: testing.PeerRelation,
+        kratos_info_relation: testing.Relation,
+        api_token_secret: testing.Secret,
+        mocked_subprocess_run: MagicMock,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test that TLS CA update failure prevents pebble plan (returns False)."""
+        mock_path = mocker.patch("charm.LOCAL_CHARM_CERTIFICATES_FILE")
+        mock_path.exists.return_value = False
+        mock_path.parent.mkdir.return_value = None
+
+        mock_tls = mocker.patch("charm.TLSCertificates")
+        mock_tls.load.return_value.ca_bundle = "new-ca-cert"
+
+        mocked_subprocess_run.side_effect = subprocess.CalledProcessError(
+            1, "update-ca-certificates"
+        )
+
+        state = create_state(
+            relations=[
+                database_relation,
+                openfga_relation,
+                peer_relation,
+                kratos_info_relation,
+            ],
+            secrets=[api_token_secret, openfga_secret],
+        )
+
+        state_out = context.run(context.on.config_changed(), state)
+
+        mock_path.unlink.assert_called_with(missing_ok=True)
+        # Service should NOT be planned since _ensure_tls returns False
+        container_out = state_out.get_container(WORKLOAD_CONTAINER)
+        assert "tenant-service" not in container_out.layers
+
+
+class TestSecretMissing:
+    def test_api_token_missing_raises_value_error(self) -> None:
+        """Test that accessing api_token without secret raises ValueError."""
+        from unittest.mock import MagicMock as MockModel
+
+        from secret import Secrets
+
+        mock_model = MockModel()
+        mock_model.get_secret.side_effect = ops.SecretNotFoundError("not found")
+        secrets = Secrets(mock_model)
+        with pytest.raises(ValueError, match="API token secret is not available"):
+            _ = secrets.api_token
+
+    def test_to_env_vars_with_missing_secret_raises(self) -> None:
+        """Test that to_env_vars raises when api_token is missing."""
+        from unittest.mock import MagicMock as MockModel
+
+        from secret import Secrets
+
+        mock_model = MockModel()
+        mock_model.get_secret.side_effect = ops.SecretNotFoundError("not found")
+        secrets = Secrets(mock_model)
+        with pytest.raises(ValueError, match="API token secret is not available"):
+            secrets.to_env_vars()

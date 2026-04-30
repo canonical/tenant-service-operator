@@ -20,5 +20,5 @@ class MigrationCheckError(CharmError):
     """Error for database migration check."""
 
 
-class CreateFgaStoreError(CharmError):
-    """Error when creating an OpenFGA store."""
+class CreateFgaModelError(CharmError):
+    """Error when creating an OpenFGA authorization model."""
