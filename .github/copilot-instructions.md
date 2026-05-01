@@ -60,7 +60,6 @@ All data sources implement `EnvVarConvertible` (`to_env_vars() -> EnvVars`).
 - **Docstrings**: Google-style for all classes and public methods.
 - **Error Handling**: Custom exceptions in `exceptions.py`. Catch in `charm.py` for status.
 - **Control Flow**: EAFP over LBYL.
-- **No Salesforce**: The tenant-service has no Salesforce integration.
 
 ## Relations
 
