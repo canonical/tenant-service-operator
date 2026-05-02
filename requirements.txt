@@ -4,4 +4,4 @@ jinja2
 pydantic~=2.12.0
 lightkube~=0.17.2
 lightkube-models~=1.34.0.8
-requests~=2.32.0
+requests~=2.33.0
