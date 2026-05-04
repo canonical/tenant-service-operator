@@ -68,7 +68,6 @@ module "application" {
   units                            = var.charm.units
   base                             = var.charm.base
   config                           = var.charm.config
-  salesforce_credentials_secret_id = sensitive(data.juju_secret.salesforce_consumer_secret.secret_id)
   channel                          = var.channel
   revision                         = var.revision
 }

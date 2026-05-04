@@ -48,8 +48,8 @@ variable "revision" {
   default     = null
 }
 
-variable "salesforce_credentials_secret_id" {
-  description = "The juju secret with credentials for calling the Salesforce API."
-  type        = string
-  sensitive   = true
+variable "resources" {
+  description = "The charm resources (e.g. oci-image override for a local registry)"
+  type        = map(string)
+  default     = {}
 }

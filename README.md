@@ -12,6 +12,33 @@
 
 Python Operator for the Canonical Identity Platform Tenant Service
 
+## Hydra Token Hook
+
+This charm provides a `hydra-token-hook` relation that registers a token enrichment
+webhook with Hydra to inject `tenant_id` claims into OAuth2 access and ID tokens.
+
+**Important:** Hydra supports only **one** `hydra-token-hook` integration at a time.
+Two deployment topologies are available:
+
+| Topology | Hook provider | Token claims | When to use |
+|----------|--------------|--------------|-------------|
+| **With hook-service** (recommended) | hook-service | `groups` + `tenant_id` | Full Identity Platform deployments |
+| **Without hook-service** | tenant-service | `tenant_id` only | Standalone tenant-service deployments |
+
+When **hook-service** is deployed, it should be the sole `hydra-token-hook` provider.
+Hook-service discovers tenant-service via the `tenant-service-info` relation and calls
+its lookup API internally, so both `groups` and `tenant_id` are enriched in a single
+hook invocation. Do **not** also integrate `tenant-service:hydra-token-hook` with Hydra
+in this topology.
+
+When **hook-service** is not deployed, tenant-service can provide the hook directly:
+
+```bash
+juju integrate tenant-service:hydra-token-hook hydra
+```
+
+See [ADR-0007](docs/adr/0007-remove-hydra-token-hook.md) for the full rationale.
+
 ## Security
 
 Please see [SECURITY.md](https://github.com/canonical/tenant-service-operator/blob/main/SECURITY.md)

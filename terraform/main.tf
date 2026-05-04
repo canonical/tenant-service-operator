@@ -11,9 +11,9 @@ resource "juju_application" "application" {
   trust      = true
   config = merge(
     var.config,
-    { salesforce_consumer_secret = format("secret:%s", var.salesforce_credentials_secret_id) }
   )
   constraints = var.constraints
+  resources   = var.resources
   units       = var.units
 
   charm {

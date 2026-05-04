@@ -29,7 +29,7 @@ tenant-service charm using the Juju Terraform provider.
 | <a name="input_base"></a> [base](#input\_base) | The charm base | `string` | `"ubuntu@22.04"` | no |
 | <a name="input_channel"></a> [channel](#input\_channel) | The charm channel | `string` | `"latest/edge"` | no |
 | <a name="input_revision"></a> [revision](#input\_revision) | The charm revision | `number` | `null` | no |
-| <a name="input_salesforce_credentials_secret_id"></a> [salesforce\_credentials\_secret\_id](#input\_salesforce\_credentials\_secret\_id) | The juju secret with credentials for calling the Salesforce API. | `string` | n/a | yes |
+| <a name="input_resources"></a> [resources](#input\_resources) | The charm resources (e.g. oci-image override for a local registry) | `map(string)` | `{}` | no |
 ---
 ## Outputs
 
