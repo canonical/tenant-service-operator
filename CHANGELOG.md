@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.1](https://github.com/canonical/tenant-service-operator/compare/v1.1.0...v1.1.1) (2026-05-28)
+
+
+### Bug Fixes
+
+* **deps:** update dependency cosl to ~=1.9.1 ([a70ed74](https://github.com/canonical/tenant-service-operator/commit/a70ed74eec2e67e606e629925220190da4f64c4b))
+* **deps:** update dependency cosl to ~=1.9.1 ([#9](https://github.com/canonical/tenant-service-operator/issues/9)) ([049c6c9](https://github.com/canonical/tenant-service-operator/commit/049c6c90842a1191139288f32c5c9f24d93ac86f))
+* **deps:** update dependency lightkube to ~=0.21.0 ([3db4a97](https://github.com/canonical/tenant-service-operator/commit/3db4a97bc7a91e437069cb39ffb44235b1d059b5))
+* **deps:** update dependency lightkube to ~=0.21.0 ([#10](https://github.com/canonical/tenant-service-operator/issues/10)) ([403a443](https://github.com/canonical/tenant-service-operator/commit/403a4430c98fe6de60919b5e4abc4140fd167cdb))
+* **deps:** update dependency lightkube-models to ~=1.35.0.8 ([852e8b7](https://github.com/canonical/tenant-service-operator/commit/852e8b755320735c8a9822c6d8e51d493cbd424a))
+* **deps:** update dependency lightkube-models to ~=1.35.0.8 ([#11](https://github.com/canonical/tenant-service-operator/issues/11)) ([4caef76](https://github.com/canonical/tenant-service-operator/commit/4caef76f318457dbead9b0bf64cba81e1097b9ec))
+* **deps:** update dependency pydantic to ~=2.13.4 ([0554fa2](https://github.com/canonical/tenant-service-operator/commit/0554fa2463a3ac6ab2264f43161c866ee097c103))
+* **deps:** update dependency pydantic to ~=2.13.4 ([#12](https://github.com/canonical/tenant-service-operator/issues/12)) ([47c1541](https://github.com/canonical/tenant-service-operator/commit/47c1541e4d28c63bd98e6733874717f2791fbfd3))
+
 ## [1.1.0](https://github.com/canonical/tenant-service-operator/compare/v1.0.6...v1.1.0) (2026-05-28)
 
 
