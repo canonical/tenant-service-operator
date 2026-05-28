@@ -32,7 +32,7 @@ from charms.kratos.v0.kratos_registration_webhook import (
 )
 from charms.openfga_k8s.v1.openfga import OpenFGARequires
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
-from charms.tenant_service_operator.v0.tenant_service_info import (
+from charms.tenant_service.v0.tenant_service_info import (
     TenantServiceInfoProvider,
 )
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer

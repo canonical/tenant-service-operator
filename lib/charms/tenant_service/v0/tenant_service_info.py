@@ -20,7 +20,7 @@ provides:
 
 Then, to initialise the library:
 ```python
-from charms.tenant_service_operator.v0.tenant_service_info import TenantServiceInfoProvider
+from charms.tenant_service.v0.tenant_service_info import TenantServiceInfoProvider
 
 class TenantServiceCharm(CharmBase):
     def __init__(self, *args):
@@ -46,7 +46,7 @@ requires:
 
 Then, to initialise the library:
 ```python
-from charms.tenant_service_operator.v0.tenant_service_info import TenantServiceInfoRequirer
+from charms.tenant_service.v0.tenant_service_info import TenantServiceInfoRequirer
 
 class SomeCharm(CharmBase):
     def __init__(self, *args):
@@ -65,9 +65,9 @@ from ops.charm import CharmBase, RelationBrokenEvent, RelationChangedEvent, Rela
 from ops.framework import EventBase, EventSource, Object, ObjectEvents
 from pydantic import BaseModel, ValidationError
 
-LIBID = "c1d2e3f4a5b6c1d2e3f4a5b6c1d2e3f4"
+LIBID = "6257ac767bf04678b4c3f3d2b8edc6e4"
 LIBAPI = 0
-LIBPATCH = 2
+LIBPATCH = 1
 
 PYDEPS = ["pydantic"]
 

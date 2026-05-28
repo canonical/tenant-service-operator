@@ -10,7 +10,7 @@ from charms.kratos.v0.kratos_login_webhook import KratosLoginWebhookProvider
 from charms.kratos.v0.kratos_registration_webhook import KratosRegistrationWebhookProvider
 from charms.openfga_k8s.v1.openfga import OpenfgaProviderAppData, OpenFGARequires
 from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
-from charms.tenant_service_operator.v0.tenant_service_info import TenantServiceInfoProvider
+from charms.tenant_service.v0.tenant_service_info import TenantServiceInfoProvider
 from charms.traefik_k8s.v0.traefik_route import TraefikRouteRequirer
 from ops.model import Model
 from pydantic import AnyHttpUrl
