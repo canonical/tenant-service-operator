@@ -35,7 +35,7 @@ class Secrets:
         self._model.app.add_secret(content, label=label)
 
     def values(self) -> ValuesView:
-        """Get all secret values."""
+        """All secret values."""
         secret_contents = {}
         for key, label in zip(self.KEYS, self.LABELS):
             try:
@@ -47,7 +47,7 @@ class Secrets:
         return secret_contents.values()
 
     def to_env_vars(self) -> EnvVars:
-        """Get secret env vars."""
+        """Secret env vars."""
         return {
             "WEBHOOKS_API_TOKEN": self.api_token,
         }
@@ -59,7 +59,7 @@ class Secrets:
 
     @property
     def api_token(self) -> str:
-        """Get the API token.
+        """The API token.
 
         Raises:
             ValueError: If the API token secret has not been created yet.
