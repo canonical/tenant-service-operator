@@ -352,7 +352,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
 
     @property
     def _hydra_hook_url(self) -> str:
-        """Get the URL for the Hydra token webhook."""
+        """The URL for the Hydra token webhook."""
         if internal_url := self._cached_internal_ingress.url:
             return join(str(internal_url), "api/v0/webhooks/token")
         return (
@@ -362,7 +362,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
 
     @property
     def _kratos_login_webhook_url(self) -> str:
-        """Get the URL for the Kratos login webhook."""
+        """The URL for the Kratos login webhook."""
         if internal_url := self._cached_internal_ingress.url:
             return join(str(internal_url), "api/v0/webhooks/login")
         return (
@@ -372,7 +372,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
 
     @property
     def _kratos_registration_webhook_url(self) -> str:
-        """Get the URL for the Kratos registration webhook."""
+        """The URL for the Kratos registration webhook."""
         if internal_url := self._cached_internal_ingress.url:
             return join(str(internal_url), "api/v0/webhooks/registration")
         return (
@@ -382,14 +382,14 @@ class TenantServiceOperatorCharm(ops.CharmBase):
 
     @property
     def _service_url(self) -> str:
-        """Get the base HTTP service URL for the tenant-service."""
+        """The base HTTP service URL for the tenant-service."""
         if internal_url := self._cached_internal_ingress.url:
             return str(internal_url)
         return f"http://{self.app.name}.{self.model.name}.svc.cluster.local:{PORT}"
 
     @property
     def _grpc_url(self) -> str:
-        """Get the gRPC service URL for the tenant-service."""
+        """The gRPC service URL for the tenant-service."""
         return f"{self.app.name}.{self.model.name}.svc.cluster.local:{GRPC_PORT}"
 
     @property
@@ -594,7 +594,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             )
 
     def _get_migration_status(self) -> ops.StatusBase | None:
-        """Get the migration status for collect-status."""
+        """Migration status for collect-status."""
         try:
             is_migration_ready = migration_is_ready(self)
         except MigrationCheckError as e:
@@ -715,7 +715,7 @@ class TenantServiceOperatorCharm(ops.CharmBase):
     # Actions
 
     def _get_management_token(self) -> str | None:
-        """Get an OAuth access token for internal management API calls.
+        """OAuth access token for internal management API calls.
 
         Returns:
             An access token if OAuth is configured and the exchange succeeds,

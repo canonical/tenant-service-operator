@@ -281,7 +281,7 @@ class DatabaseConfig:
 
     @property
     def dsn(self) -> str:
-        """Get the PostgreSQL DSN."""
+        """The PostgreSQL DSN."""
         return POSTGRESQL_DSN_TEMPLATE.substitute(
             username=self.username,
             password=self.password,
@@ -342,12 +342,12 @@ class OpenFGAIntegrationData:
 
     @property
     def api_scheme(self) -> str:
-        """Get the OpenFGA API scheme."""
+        """The OpenFGA API scheme."""
         return urlparse(self.url).scheme
 
     @property
     def api_host(self) -> str:
-        """Get the OpenFGA API host."""
+        """The OpenFGA API host."""
         return urlparse(self.url).netloc
 
     def to_env_vars(self) -> EnvVars:
@@ -375,7 +375,7 @@ class OpenFGAIntegration:
 
     @property
     def openfga_integration_data(self) -> OpenFGAIntegrationData:
-        """Get the OpenFGA integration data."""
+        """The OpenFGA integration data."""
         if not (provider_data := self._openfga_requirer.get_store_info()):
             return OpenFGAIntegrationData()
 
@@ -501,7 +501,7 @@ class OAuthIntegration:
 
     @property
     def oauth_client_config(self) -> ClientConfig:
-        """Get the OAuth client config."""
+        """The OAuth client config."""
         client = ClientConfig(
             redirect_uri="https://example.com",
             scope=OAUTH_SCOPES,
