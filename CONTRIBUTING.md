@@ -39,11 +39,9 @@ in the `[dependency-groups]` section of `pyproject.toml`:
 To set up a local development environment with all dependencies:
 
 ```shell
-tox devenv
-source venv/bin/activate
+uv sync --group dev
+source .venv/bin/activate
 ```
-
-> **Note:** `pip >= 24.3` (or `uv`) is required for `[dependency-groups]` support.
 
 ## Testing
 
