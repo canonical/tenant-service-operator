@@ -1,10 +1,6 @@
 # Copyright 2022 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-[build-system]
-requires = ["setuptools>=69", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "tenant-service-operator"
 version = "0.0.0"
@@ -18,17 +14,36 @@ dependencies = [
     "lightkube~=0.22.0",
     "lightkube-models~=1.36.3.8",
     "requests~=2.32.0",
+    "jsonschema",
+    "setuptools>=70.0.0",
 ]
 
-[project.optional-dependencies]
-fmt = ["isort", "ruff"]
-lint = ["codespell", "isort", "ruff", "tomli"]
+[dependency-groups]
+dev = [
+    "pre-commit",
+    "mypy",
+    "types-PyYAML",
+    "types-requests",
+    { include-group = "fmt" },
+    { include-group = "lint" },
+    { include-group = "unit" },
+    { include-group = "integration" },
+]
+fmt = [
+    "isort",
+    "ruff",
+]
+lint = [
+    "codespell",
+    "isort",
+    "ruff",
+    "tomli",
+]
 unit = [
+    "coverage[toml]",
     "ops[testing]",
     "pytest",
     "pytest-mock",
-    "coverage[toml]",
-    "jsonschema",
 ]
 integration = [
     "jubilant",
@@ -36,16 +51,9 @@ integration = [
     "requests",
     "tenacity",
 ]
-dev = [
-    "tenant-service-operator[fmt,lint,unit,integration]",
-    "pre-commit",
-    "mypy",
-    "types-PyYAML",
-    "types-requests",
-]
 
-[tool.setuptools]
-py-modules = []
+[tool.uv]
+package = false
 
 # Testing tools configuration
 [tool.coverage.run]
