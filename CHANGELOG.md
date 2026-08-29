@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.1.2](https://github.com/canonical/tenant-service-operator/compare/v1.1.1...v1.1.2) (2026-08-29)
+
+
+### Bug Fixes
+
+* **deps:** update dependency cosl to ~=1.10.2 ([b35e1d7](https://github.com/canonical/tenant-service-operator/commit/b35e1d726fbc517573ea4c1c75a1498848baa6de))
+* **deps:** update dependency cosl to ~=1.10.2 ([#30](https://github.com/canonical/tenant-service-operator/issues/30)) ([a42c054](https://github.com/canonical/tenant-service-operator/commit/a42c054dd0bad9bbd4485cb2182eb2bec47859f0))
+* **deps:** update dependency lightkube to ~=0.22.0 ([2f7dd00](https://github.com/canonical/tenant-service-operator/commit/2f7dd0010978f25eed30a74a81e14d4f305f6f4d))
+* **deps:** update dependency lightkube to ~=0.22.0 ([#29](https://github.com/canonical/tenant-service-operator/issues/29)) ([af9f870](https://github.com/canonical/tenant-service-operator/commit/af9f8707287ae6faea42289ded81dfdfb6648e6e))
+* **deps:** update dependency lightkube to v1 ([ad5c112](https://github.com/canonical/tenant-service-operator/commit/ad5c11248866b608a9c564ab798353ffd3079685))
+* **deps:** update dependency lightkube to v1 ([#41](https://github.com/canonical/tenant-service-operator/issues/41)) ([48ba41f](https://github.com/canonical/tenant-service-operator/commit/48ba41fefbb3ca4b2a23544a1b8a10878bea973a))
+* **deps:** update dependency lightkube-models to ~=1.36.3.8 ([dcb583a](https://github.com/canonical/tenant-service-operator/commit/dcb583acebcaa66f0f5714d79eb1fa9bec142b33))
+* **deps:** update dependency lightkube-models to ~=1.36.3.8 ([#32](https://github.com/canonical/tenant-service-operator/issues/32)) ([a37404b](https://github.com/canonical/tenant-service-operator/commit/a37404b8860f444ba52cacf2a344124d5a26d39a))
+* **deps:** update dependency lightkube-models to ~=1.37.0.8 ([d4d09e1](https://github.com/canonical/tenant-service-operator/commit/d4d09e193e254a1008de46e40fd56bc261e0b889))
+* **deps:** update dependency lightkube-models to ~=1.37.0.8 ([#48](https://github.com/canonical/tenant-service-operator/issues/48)) ([d53148e](https://github.com/canonical/tenant-service-operator/commit/d53148e4ce8524a56830b3f3689d8256a2ef3f3f))
+* **deps:** update dependency requests to ~=2.34.2 ([55fb90a](https://github.com/canonical/tenant-service-operator/commit/55fb90a9c3373cf36a8d4e7762458408a1c26497))
+* **deps:** update dependency requests to ~=2.34.2 ([#36](https://github.com/canonical/tenant-service-operator/issues/36)) ([79a9fcc](https://github.com/canonical/tenant-service-operator/commit/79a9fccbed6aea4ca5ad2da2c5722471107c058b))
+
 ## [1.1.1](https://github.com/canonical/tenant-service-operator/compare/v1.1.0...v1.1.1) (2026-05-28)
 
 
