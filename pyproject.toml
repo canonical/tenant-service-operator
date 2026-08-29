@@ -12,7 +12,7 @@ dependencies = [
     "jinja2",
     "pydantic~=2.13.4",
     "lightkube~=1.0.0",
-    "lightkube-models~=1.36.3.8",
+    "lightkube-models~=1.37.0.8",
     "requests~=2.34.2",
     "jsonschema",
     "setuptools>=70.0.0",
