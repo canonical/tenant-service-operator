@@ -401,9 +401,10 @@ class TestTenantServiceInfoIntegration:
     def test_update_relations_app_data(self, mocked_provider: MagicMock) -> None:
         integration = TenantServiceInfoIntegration(mocked_provider)
         integration.update_relations_app_data(
-            "http://tenant-service:8080", "grpc://tenant-service:50051"
+            "http://tenant-service:8080", "grpc://tenant-service:50051", "tenant-service"
         )
         mocked_provider.update_relations_app_data.assert_called_once_with(
             service_url="http://tenant-service:8080",
             grpc_url="grpc://tenant-service:50051",
+            allowed_scope="tenant-service",
         )
