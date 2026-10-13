@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import subprocess
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -826,6 +827,90 @@ class TestTLSFailure:
         # Service should NOT be planned since _ensure_tls returns False
         container_out = state_out.get_container(WORKLOAD_CONTAINER)
         assert "tenant-service" not in container_out.layers
+
+
+class TestCABundle:
+    @pytest.fixture
+    def charm_copy(self, mocker: MockerFixture, tmp_path: Path) -> Path:
+        """The charm's copy of the bundle it last applied."""
+        return mocker.patch("charm.LOCAL_CHARM_CERTIFICATES_FILE", tmp_path / "ca.crt")
+
+    @pytest.fixture
+    def state(
+        self,
+        database_relation: testing.Relation,
+        openfga_relation: testing.Relation,
+        openfga_secret: testing.Secret,
+        peer_relation: testing.PeerRelation,
+        kratos_info_relation: testing.Relation,
+        api_token_secret: testing.Secret,
+    ) -> testing.State:
+        return create_state(
+            relations=[database_relation, openfga_relation, peer_relation, kratos_info_relation],
+            secrets=[api_token_secret, openfga_secret],
+        )
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(ops.pebble.ConnectionError("pebble is down"), id="pebble is down"),
+            pytest.param(TimeoutError("timed out"), id="pebble does not answer in time"),
+        ],
+    )
+    def test_failed_push_is_retried(
+        self,
+        context: testing.Context,
+        state: testing.State,
+        charm_copy: Path,
+        mocker: MockerFixture,
+        error: Exception,
+    ) -> None:
+        mocker.patch("charm.TLSCertificates").load.return_value.ca_bundle = "new-ca-cert"
+        push = mocker.patch(
+            "charm.WorkloadService.update_ca_certs",
+            side_effect=[error, True],
+        )
+
+        context.run(context.on.config_changed(), state)
+        context.run(context.on.config_changed(), state)
+
+        assert push.call_count == 2
+
+    def test_failed_removal_is_retried(
+        self,
+        context: testing.Context,
+        state: testing.State,
+        charm_copy: Path,
+        mocked_subprocess_run: MagicMock,
+        mocker: MockerFixture,
+    ) -> None:
+        charm_copy.write_text("old-ca-cert")
+        mocker.patch("charm.TLSCertificates").load.return_value.ca_bundle = ""
+        mocked_subprocess_run.side_effect = subprocess.CalledProcessError(
+            1, "update-ca-certificates"
+        )
+
+        context.run(context.on.config_changed(), state)
+
+        assert charm_copy.read_text() == "old-ca-cert"
+
+    def test_applied_bundle_with_crlf_line_endings_is_not_applied_again(
+        self,
+        context: testing.Context,
+        state: testing.State,
+        charm_copy: Path,
+        mocked_subprocess_run: MagicMock,
+        mocker: MockerFixture,
+    ) -> None:
+        bundle = "ca-cert-line-1\r\nca-cert-line-2"
+        charm_copy.write_text(bundle)
+        mocker.patch("charm.TLSCertificates").load.return_value.ca_bundle = bundle
+        push = mocker.patch("charm.WorkloadService.update_ca_certs")
+
+        context.run(context.on.config_changed(), state)
+
+        mocked_subprocess_run.assert_not_called()
+        push.assert_not_called()
 
 
 class TestSecretMissing:
