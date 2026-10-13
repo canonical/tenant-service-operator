@@ -518,8 +518,9 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         LOCAL_CHARM_CERTIFICATES_FILE.parent.mkdir(parents=True, exist_ok=True)
 
         certificates = TLSCertificates.load(self.certificate_transfer_requirer).ca_bundle
+        # No newline translation: a bundle with CRLF line endings has to equal its copy.
         existing = (
-            LOCAL_CHARM_CERTIFICATES_FILE.read_text()
+            LOCAL_CHARM_CERTIFICATES_FILE.read_bytes().decode()
             if LOCAL_CHARM_CERTIFICATES_FILE.exists()
             else ""
         )
@@ -544,12 +545,16 @@ class TenantServiceOperatorCharm(ops.CharmBase):
                 ],
                 check=True,
             )
-        except subprocess.CalledProcessError:
+            self._tls_cert_changed = self._workload_service.update_ca_certs()
+        # OSError: a request to Pebble that times out, or a missing binary.
+        except (subprocess.CalledProcessError, ops.pebble.Error, OSError):
             logger.exception("Failed to update CA certificates")
-            # Remove the cert file so the next reconciliation retries the subprocess.
-            LOCAL_CHARM_CERTIFICATES_FILE.unlink(missing_ok=True)
+            # Put the earlier copy back so the next reconciliation retries.
+            if existing:
+                LOCAL_CHARM_CERTIFICATES_FILE.write_text(existing)
+            else:
+                LOCAL_CHARM_CERTIFICATES_FILE.unlink(missing_ok=True)
             return False
-        self._tls_cert_changed = self._workload_service.update_ca_certs()
         return True
 
     def _on_holistic_handler(self, event: ops.EventBase) -> None:
