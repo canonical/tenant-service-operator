@@ -265,9 +265,13 @@ class TenantServiceInfoIntegration:
     def __init__(self, provider: TenantServiceInfoProvider) -> None:
         self._provider = provider
 
-    def update_relations_app_data(self, service_url: str, grpc_url: str) -> None:
-        """Publish the tenant-service HTTP and gRPC URLs into all active relation databags."""
-        self._provider.update_relations_app_data(service_url=service_url, grpc_url=grpc_url)
+    def update_relations_app_data(
+        self, service_url: str, grpc_url: str, allowed_scope: str = ""
+    ) -> None:
+        """Publish the URLs and the scope callers need into all active relation databags."""
+        self._provider.update_relations_app_data(
+            service_url=service_url, grpc_url=grpc_url, allowed_scope=allowed_scope
+        )
 
 
 @dataclass(frozen=True, slots=True)
