@@ -224,6 +224,11 @@ class TenantServiceOperatorCharm(ops.CharmBase):
             self.kratos_registration_webhook.on.ready, self._on_holistic_handler
         )
 
+        # Tenant service info relation: a new requirer is told at once
+        self.framework.observe(
+            self.tenant_service_info_provider.on.ready, self._on_holistic_handler
+        )
+
         # Kratos info relation
         self.framework.observe(
             self.on[KRATOS_INFO_INTEGRATION_NAME].relation_changed, self._on_holistic_handler
@@ -442,7 +447,9 @@ class TenantServiceOperatorCharm(ops.CharmBase):
         """Ensure the tenant-service-info relation data is published."""
         if self.unit.is_leader():
             self.tenant_service_info_integration.update_relations_app_data(
-                self._service_url, self._grpc_url
+                self._service_url,
+                self._grpc_url,
+                self._config.get_oauth_config().get("authn_allowed_scope") or "",
             )
         return True
 

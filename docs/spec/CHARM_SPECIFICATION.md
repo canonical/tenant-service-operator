@@ -175,7 +175,7 @@ Secrets                     ──→                        ──→ Relation 
 | `memory` | string | unset | K8s memory resource limit |
 | `authorization_enabled` | boolean | `true` | Enable OpenFGA authorization checks |
 | `authn_allowed_subjects` | string | `""` | Comma-separated allowed JWT subject IDs |
-| `authn_allowed_scope` | string | `""` | Required OAuth2 scope |
+| `authn_allowed_scope` | string | `""` | Required OAuth2 scope (one scope, not a list); published in `tenant-service-info` for the charms that call the service |
 | `authn_issuer` | string | `""` | JWT issuer URL (mutually exclusive with `oauth` relation) |
 | `authn_jwks_url` | string | `""` | JWKS endpoint (mutually exclusive with `oauth` relation) |
 | `invitation_lifetime` | string | `"24h"` | Duration an invitation/recovery link remains valid |
@@ -238,7 +238,7 @@ Executed in order; each returns `bool`. Short-circuit on failure:
 1. `_ensure_secrets` — Create API token secret if leader
 2. `_ensure_kratos_registration_webhook` — Push webhook URL + token to Kratos via `kratos-registration-webhook` relation
 3. `_ensure_kratos_login_webhook` — Push webhook URL + token to Kratos via `kratos-login-webhook` relation (NEW)
-4. `_ensure_tenant_service_info` — Publish HTTP/gRPC URLs via `tenant-service-info` relation
+4. `_ensure_tenant_service_info` — Publish HTTP/gRPC URLs and the required scope (`authn_allowed_scope`) via `tenant-service-info` relation
 5. `_ensure_internal_ingress` — Submit Traefik route config
 6. `_ensure_database_migration` — Run `tenant-service migrate up` (leader only)
 7. `_ensure_openfga_model` — Run `tenant-service create-fga-model` (leader only)
