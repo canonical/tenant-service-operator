@@ -12,10 +12,17 @@ from typing_extensions import Self, Type
 class HTTPClient:
     """HTTP client for performing OAuth2 client credentials token exchange."""
 
-    def __init__(self, token_url: str) -> None:
+    def __init__(
+        self, token_url: str, http_proxy: str = "", https_proxy: str = "", no_proxy: str = ""
+    ) -> None:
         self._token_url = token_url.rstrip("/")
         self._session = requests.Session()
         self._session.verify = False
+        # The proxy of the workload, unless no_proxy names the endpoint's host.
+        proxies = {k: v for k, v in {"http": http_proxy, "https": https_proxy}.items() if v}
+        if no_proxy and requests.utils.should_bypass_proxies(self._token_url, no_proxy=no_proxy):
+            proxies = {}
+        self._proxies = proxies or None
 
     def __enter__(self) -> Self:
         """Enter the context manager."""
@@ -46,6 +53,8 @@ class HTTPClient:
                 "grant_type": "client_credentials",
             },
             auth=(client_id, client_secret),
+            proxies=self._proxies,
+            timeout=10,
         )
         response.raise_for_status()
         token_data = response.json()
