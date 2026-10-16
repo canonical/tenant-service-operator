@@ -69,6 +69,18 @@ class TestCharmConfig:
 
         assert oauth == {}
 
+    def test_get_proxy_config(self, full_config: dict, minimal_config: dict) -> None:
+        assert CharmConfig(full_config).get_proxy_config() == {
+            "http_proxy": "http://proxy:6666",
+            "https_proxy": "http://proxy:6666",
+            "no_proxy": "localhost",
+        }
+        assert CharmConfig(minimal_config).get_proxy_config() == {
+            "http_proxy": "",
+            "https_proxy": "",
+            "no_proxy": "",
+        }
+
     def test_get_missing_config_keys(self, minimal_config: dict) -> None:
         config = CharmConfig(minimal_config)
         missing = config.get_missing_config_keys()
