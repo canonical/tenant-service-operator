@@ -31,6 +31,12 @@ class CharmConfig:
             if (v := self._config.get(k))
         }
 
+    def get_proxy_config(self) -> dict[str, str]:
+        """Get the proxy options, for the charm's own requests."""
+        return {
+            k: str(self._config.get(k) or "") for k in ["http_proxy", "https_proxy", "no_proxy"]
+        }
+
     def get_missing_config_keys(self) -> list:
         """Get missing config keys."""
         return []
