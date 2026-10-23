@@ -136,6 +136,63 @@ class TestAuthn:
         assert env["AUTHENTICATION_REQUIRED_SCOPE"] == "profile"
 
 
+class TestTenantServiceInfo:
+    @pytest.mark.parametrize("scope, published", [("tenant-service", "tenant-service"), ("", "")])
+    def test_publishes_the_scope_callers_need(
+        self,
+        context: testing.Context,
+        container: testing.Container,
+        database_relation: testing.Relation,
+        openfga_relation: testing.Relation,
+        openfga_secret: testing.Secret,
+        peer_relation: testing.PeerRelation,
+        kratos_info_relation: testing.Relation,
+        api_token_secret: testing.Secret,
+        oauth_relation: testing.Relation,
+        scope: str,
+        published: str,
+    ) -> None:
+        info = testing.Relation(
+            endpoint="tenant-service-info", interface="tenant_service_info", remote_app_name="sso"
+        )
+        client_secret = testing.Secret(
+            id="tenant-service-client-secret", tracked_content={"secret": "supersecret"}
+        )
+        state = create_state(
+            relations=[
+                oauth_relation,
+                database_relation,
+                openfga_relation,
+                peer_relation,
+                kratos_info_relation,
+                info,
+            ],
+            config={"authn_allowed_scope": scope},
+            secrets=[client_secret, api_token_secret, openfga_secret],
+        )
+
+        state_out = context.run(context.on.pebble_ready(container), state)
+
+        data = state_out.get_relation(info.id).local_app_data
+        assert data["grpc_url"]
+        assert data.get("allowed_scope", "") == published
+
+
+class TestTenantServiceInfoReadyEvent:
+    def test_when_event_emitted(
+        self,
+        context: testing.Context,
+        mocked_charm_holistic_handler: MagicMock,
+    ) -> None:
+        info = testing.Relation(
+            endpoint="tenant-service-info", interface="tenant_service_info", remote_app_name="sso"
+        )
+
+        context.run(context.on.relation_created(info), create_state(relations=[info]))
+
+        mocked_charm_holistic_handler.assert_called_once()
+
+
 class TestConfigChangedEvent:
     def test_when_event_emitted(
         self,

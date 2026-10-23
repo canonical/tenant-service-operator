@@ -67,7 +67,7 @@ from pydantic import BaseModel, ValidationError
 
 LIBID = "6257ac767bf04678b4c3f3d2b8edc6e4"
 LIBAPI = 0
-LIBPATCH = 1
+LIBPATCH = 2
 
 PYDEPS = ["pydantic"]
 
@@ -82,6 +82,8 @@ class ProviderData(BaseModel):
 
     service_url: str
     grpc_url: str
+    # The OAuth2 scope that admits a caller's token, when the service is configured with one.
+    allowed_scope: str = ""
 
 
 class TenantServiceInfoReadyEvent(EventBase):
@@ -123,16 +125,19 @@ class TenantServiceInfoProvider(Object):
     def _on_relation_created(self, event: RelationCreatedEvent) -> None:
         self.on.ready.emit()
 
-    def update_relations_app_data(self, service_url: str, grpc_url: str) -> None:
-        """Write service_url and grpc_url into all active relation databags."""
+    def update_relations_app_data(
+        self, service_url: str, grpc_url: str, allowed_scope: str = ""
+    ) -> None:
+        """Write the URLs and the scope callers need into all active relation databags."""
         if not self._charm.unit.is_leader():
             return
 
+        data = ProviderData(
+            service_url=service_url, grpc_url=grpc_url, allowed_scope=allowed_scope
+        )
         relations = self._charm.model.relations.get(self._relation_name, [])
         for relation in relations:
-            relation.data[self._charm.app].update(
-                ProviderData(service_url=service_url, grpc_url=grpc_url).model_dump()
-            )
+            relation.data[self._charm.app].update(data.model_dump())
 
 
 class TenantServiceInfoRequirer(Object):
@@ -195,3 +200,8 @@ class TenantServiceInfoRequirer(Object):
         """Return the tenant-service gRPC URL, or None if unavailable."""
         data = self.get_provider_data()
         return data.grpc_url if data else None
+
+    def get_allowed_scope(self) -> Optional[str]:
+        """Return the scope that admits a caller's token, or None if there is none."""
+        data = self.get_provider_data()
+        return (data.allowed_scope or None) if data else None

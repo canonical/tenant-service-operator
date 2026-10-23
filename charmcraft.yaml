@@ -72,6 +72,9 @@ config:
     authn_allowed_scope:
       description: |
         The allowed OAuth2 scopes that are allowed to access the Group/Authz management APIs.
+        The value is one scope, not a list.
+        The charm publishes it in `tenant-service-info`: a related charm that calls tenant-service with
+        its own OAuth2 client registers this scope on it, so changing the option changes that client too.
       type: string
       default: ''
     authn_issuer:
@@ -273,7 +276,8 @@ provides:
     interface: tenant_service_info
     optional: true
     description: |
-      Provides the tenant-service HTTP API URL to a related application.
+      Provides the tenant-service HTTP API URL to a related application, and the OAuth2
+      scope that admits a caller's token when `authn_allowed_scope` is set.
 
 peers:
   tenant-service:
