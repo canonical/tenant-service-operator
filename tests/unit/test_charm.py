@@ -24,7 +24,6 @@ class TestPebbleReadyEvent:
     def test_when_event_emitted(
         self,
         context: testing.Context,
-        container: testing.Container,
         mocked_open_port: MagicMock,
         mocked_charm_holistic_handler: MagicMock,
         mocked_workload_service_version: MagicMock,
@@ -32,7 +31,7 @@ class TestPebbleReadyEvent:
     ) -> None:
         state = create_state()
 
-        state_out = context.run(context.on.pebble_ready(container), state)
+        state_out = context.run(context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state)
 
         assert state_out.unit_status == testing.ActiveStatus()
         mocked_open_port.assert_called_once()
@@ -44,7 +43,6 @@ class TestAuthn:
     def test_when_oauth_relation_exists(
         self,
         context: testing.Context,
-        container: testing.Container,
         database_relation: testing.Relation,
         openfga_relation: testing.Relation,
         openfga_secret: testing.Secret,
@@ -77,7 +75,7 @@ class TestAuthn:
             secrets=[client_secret, api_token_secret, openfga_secret],
         )
 
-        state_out = context.run(context.on.pebble_ready(container), state)
+        state_out = context.run(context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state)
 
         container_out = state_out.get_container(WORKLOAD_CONTAINER)
         layer = container_out.layers["tenant-service"]
@@ -96,7 +94,6 @@ class TestAuthn:
     def test_when_manual_config_exists(
         self,
         context: testing.Context,
-        container: testing.Container,
         database_relation: testing.Relation,
         openfga_relation: testing.Relation,
         openfga_secret: testing.Secret,
@@ -122,7 +119,7 @@ class TestAuthn:
             secrets=[api_token_secret, openfga_secret],
         )
 
-        state_out = context.run(context.on.pebble_ready(container), state)
+        state_out = context.run(context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state)
 
         container_out = state_out.get_container(WORKLOAD_CONTAINER)
         layer = container_out.layers["tenant-service"]
