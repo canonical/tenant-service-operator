@@ -122,39 +122,6 @@ def context() -> testing.Context:
 
 
 # ---------------------------------------------------------------------------
-# Container fixture (for tests that need a direct reference)
-# ---------------------------------------------------------------------------
-@pytest.fixture
-def container() -> testing.Container:
-    return testing.Container(
-        WORKLOAD_CONTAINER,
-        can_connect=True,
-        execs={
-            testing.Exec(
-                command_prefix=["tenant-service", "version"],
-                return_code=0,
-                stdout="App Version: 1.0.0",
-            ),
-            testing.Exec(
-                command_prefix=["tenant-service", "migrate", "check"],
-                return_code=0,
-                stdout='{"status": "ok"}',
-            ),
-            testing.Exec(
-                command_prefix=["tenant-service", "migrate", "up"],
-                return_code=0,
-                stdout="",
-            ),
-            testing.Exec(
-                command_prefix=["tenant-service", "create-fga-model"],
-                return_code=0,
-                stdout='{"model_id": "01HT27W9Y00000000000000000"}',
-            ),
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
 # Charm service mocks
 # ---------------------------------------------------------------------------
 @pytest.fixture

@@ -31,7 +31,9 @@ class TestPebbleReadyEvent:
     ) -> None:
         state = create_state()
 
-        state_out = context.run(context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state)
+        state_out = context.run(
+            context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state
+        )
 
         assert state_out.unit_status == testing.ActiveStatus()
         mocked_open_port.assert_called_once()
@@ -75,7 +77,9 @@ class TestAuthn:
             secrets=[client_secret, api_token_secret, openfga_secret],
         )
 
-        state_out = context.run(context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state)
+        state_out = context.run(
+            context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state
+        )
 
         container_out = state_out.get_container(WORKLOAD_CONTAINER)
         layer = container_out.layers["tenant-service"]
@@ -119,7 +123,9 @@ class TestAuthn:
             secrets=[api_token_secret, openfga_secret],
         )
 
-        state_out = context.run(context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state)
+        state_out = context.run(
+            context.on.pebble_ready(state.get_container(WORKLOAD_CONTAINER)), state
+        )
 
         container_out = state_out.get_container(WORKLOAD_CONTAINER)
         layer = container_out.layers["tenant-service"]
