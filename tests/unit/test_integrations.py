@@ -1,6 +1,7 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import base64
 from unittest.mock import MagicMock, create_autospec, mock_open, patch
 
 import pytest
@@ -361,6 +362,23 @@ class TestKratosRegistrationWebhookIntegration:
         assert call_args.auth_config_value == "api-token"
         assert call_args.method == "POST"
         assert call_args.response_ignore is True
+
+    def test_body_cancels_byo_sso_registrations(self, mocked_provider: MagicMock) -> None:
+        integration = KratosRegistrationWebhookIntegration(mocked_provider)
+        integration.update_relation_data("http://webhook-url", "api-token")
+
+        body = mocked_provider.update_relations_app_data.call_args[0][0].body
+        assert body.startswith("base64://")
+        jsonnet = base64.b64decode(body.removeprefix("base64://")).decode()
+        # Only a URL whose path ends with the provider's callback path cancels,
+        # with or without the trailing slash Kratos v25 also routes.
+        assert (
+            'if std.endsWith(std.rstripChars(std.split(ctx.request_url, "?")[0], "/"), '
+            '"/self-service/methods/oidc/callback/byo-sso") then\n'
+            '    error "cancel"\n'
+            "  else {\n"
+            "    identity_id: ctx.identity.id,"
+        ) in jsonnet
 
 
 class TestKratosLoginWebhookIntegration:

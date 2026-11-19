@@ -211,11 +211,20 @@ class KratosRegistrationWebhookIntegration:
 
     def update_relation_data(self, webhook_url: str, api_token: str) -> None:
         """Update the kratos-registration-webhook relation data."""
-        _body = b"""function(ctx) {
-  identity_id: ctx.identity.id,
-  email: ctx.identity.traits.email,
-  tenant_id: if std.objectHas(ctx, "flow") && std.objectHas(ctx.flow, "transient_payload") && std.objectHas(ctx.flow.transient_payload, "tenant_id") then ctx.flow.transient_payload.tenant_id else "",
-}"""
+        # A registration through the byo-sso provider is of an invited or
+        # auto-joined user, who gets no personal tenant: the body cancels the
+        # call and Kratos skips the hook.
+        # The body recognizes it by Kratos's callback path for the provider,
+        # which is best effort: Kratos also completes a sign-in on its generic
+        # callback path, on a percent-escaped one, and on an organization's.
+        _body = b"""function(ctx)
+  if std.endsWith(std.rstripChars(std.split(ctx.request_url, "?")[0], "/"), "/self-service/methods/oidc/callback/byo-sso") then
+    error "cancel"
+  else {
+    identity_id: ctx.identity.id,
+    email: ctx.identity.traits.email,
+    tenant_id: if std.objectHas(ctx, "flow") && std.objectHas(ctx.flow, "transient_payload") && std.objectHas(ctx.flow.transient_payload, "tenant_id") then ctx.flow.transient_payload.tenant_id else "",
+  }"""
         self._provider.update_relations_app_data(
             KratosRegistrationProviderData(
                 url=webhook_url,
