@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.0](https://github.com/canonical/tenant-service-operator/compare/v1.1.2...v1.2.0) (2026-11-28)
+
+
+### Features
+
+* publish the scope that admits a caller in tenant-service-info ([13ee40f](https://github.com/canonical/tenant-service-operator/commit/13ee40f38b7aab15c22b9236f652fca322abb367))
+* publish the scope that admits a caller in tenant-service-info ([#63](https://github.com/canonical/tenant-service-operator/issues/63)) ([dbc41c1](https://github.com/canonical/tenant-service-operator/commit/dbc41c10c9cf8aa95f3179c94ee75d7804f13716))
+* skip the registration webhook for the byo-sso provider ([23e58f7](https://github.com/canonical/tenant-service-operator/commit/23e58f7025d9dfa0b45e2c18f4ff6ca29a721308))
+* skip the registration webhook for the byo-sso provider ([#64](https://github.com/canonical/tenant-service-operator/issues/64)) ([6101f09](https://github.com/canonical/tenant-service-operator/commit/6101f09d08cb91488f95e6c28f2d87f6622e3be5))
+
+
+### Bug Fixes
+
+* ask for the management token through the workload's proxy ([58c2ba8](https://github.com/canonical/tenant-service-operator/commit/58c2ba87be595852b2ff53321ceab588ae4e2e81)), closes [#68](https://github.com/canonical/tenant-service-operator/issues/68)
+* ask for the management token through the workload's proxy ([#69](https://github.com/canonical/tenant-service-operator/issues/69)) ([0bd2fac](https://github.com/canonical/tenant-service-operator/commit/0bd2facbe7d5859b4e9f231cc4972e643755825f))
+* **deps:** update dependency cosl to ~=1.12.1 ([55ffbee](https://github.com/canonical/tenant-service-operator/commit/55ffbeeab851b25cfde81ab13e5554a268c1a8eb))
+* **deps:** update dependency cosl to ~=1.12.1 ([#92](https://github.com/canonical/tenant-service-operator/issues/92)) ([d166033](https://github.com/canonical/tenant-service-operator/commit/d166033a58bcbe0f2a99df97f39cfd9a70f9138f))
+* retry a failed CA bundle update and compare the bundle byte for byte ([c3651bf](https://github.com/canonical/tenant-service-operator/commit/c3651bf034b89d288e3bbb361348f0155efc5f67))
+* retry a failed CA bundle update and compare the bundle byte for byte ([#65](https://github.com/canonical/tenant-service-operator/issues/65)) ([26fa056](https://github.com/canonical/tenant-service-operator/commit/26fa056c32e6f94fa955e2b8518fa75dbc7a2feb))
+
 ## [1.1.2](https://github.com/canonical/tenant-service-operator/compare/v1.1.1...v1.1.2) (2026-10-13)
 
 
